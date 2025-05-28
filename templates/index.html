@@ -40,29 +40,37 @@
     }).addTo(map);
 
     async function runTasks() {
-        //how many steps to progress bar
+        // how many steps to progress bar
         setProgressBarNumSteps(7);
 
-        //check if logged in
+        // check if logged in
         const loggedIn = await checkIfLoggedIn();
 
         if (loggedIn) {
             closeForm();
             updateProgressBar();
 
-            //locations
+            // locations
             const data = await fetchLocations();
             updateProgressBar();
 
-            //filter data
+            // filter data
             const { drivingLatlngs, flyingLatlngs } = await filterData(data)
             updateProgressBar();
 
-            //get owntracks stats
+            // get owntracks stats
             getOwntracksStats(data);
 
-            //extra buffer stats for each type of data, driving/flying
-            let extraTasks = 2;
+            // extra buffer stats for each type of data, driving/flying
+            let extraTasks = 0;
+            // making this if statement twice seems bad, but we want to update the progress bar length before we actually start calculating
+            if (drivingLatlngs.length > 0) {
+                extraTasks++;
+            }
+            if (flyingLatlngs.length > 0) {
+                extraTasks++;
+            }
+
             let totalNumSegments = drivingLatlngs.length * 3 + flyingLatlngs.length * 3;
             setProgressBarNumSteps(totalNumSegments + getNumTasksDone() + extraTasks);
 
@@ -78,10 +86,10 @@
         }
     }
 
-    //run on page load
+    // run on page load
     window.onload = function () {
 
-        //load user settings
+        // load user settings
         getUserSettings();
 
         // find users and devices, then calculate route for the first entry
@@ -133,27 +141,28 @@
 
             <div class="subPanel">
                 <h4>Time frame</h4>
-                <p class="settingInfo">Filter the map to only shows GPS data between these two dates.</p>
+                <p class="settingInfo">Filter the map to only shows GPS data between these two dates. Time is in UTC.
+                </p>
                 <div class="dateFilters" style="float:left; width: 50%;">
                     <h5>Start Date </h5>
 
-                    <input type="date" class="input-group date" id="startBox" onkeyup="" name="trip-start"
-                        value="2015-01-01" min="2015-01-01" max="2099-12-31" />
+                    <input type="datetime-local" class="input-group date" id="startBox" onkeyup="" name="trip-start"
+                        value="2015-01-01T00:00" min="2015-01-01T00:00" max="2099-12-31T23:59" />
                 </div>
                 <div class="dateFilters" style="float:left; width: 50%;">
                     <h5>End Date </h5>
-                    <input type="date" class="input-group date" id="endBox" onkeyup="" name="trip-start"
-                        value="2099-12-31" min="2015-01-01" max="2099-12-31" />
+                    <input type="datetime-local" class="input-group date" id="endBox" onkeyup="" name="trip-start"
+                        value="2099-12-31T23:59" min="2015-01-01T00:00" max="2099-12-31T23:59" />
                 </div>
 
                 <input type="button" class="btn btn-primary time-period-btn" value="Last Month"
                     onclick="changeDateRange('month')" />
                 <input type="button" class="btn btn-primary time-period-btn" value="Last Week"
                     onclick="changeDateRange('week')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Yesterday"
-                    onclick="changeDateRange('day')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Today"
-                    onclick="changeDateRange('today')" />
+                <input type="button" class="btn btn-primary time-period-btn" value="Last 48 Hours"
+                    onclick="changeDateRange('48hrs')" />
+                <input type="button" class="btn btn-primary time-period-btn" value="Last 24 Hours"
+                    onclick="changeDateRange('24hrs')" />
 
             </div>
             <div class="subPanel">

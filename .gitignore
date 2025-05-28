@@ -10,3 +10,6 @@ fly.toml
 
 #env variables
 .env
+
+#pycache
+__pycache__/
