@@ -57,12 +57,13 @@ async function fetchLocations() {
         //start date
         console.log("Start date of OwnTracks data is " + data.features[0].properties.isotst.substring(0, 10));
 
-        // Set start date filter to the first timestamp in the data (converted to local datetime-local format)
-        const firstTimestamp = new Date(data.features[0].properties.isotst);
-        document.getElementById('startBox').value = firstTimestamp.toISOString().slice(0, 16);
-
-        // If it's the first load, set the end box to the current date & time (local)
+    
+        // If it's the first load, set the end box to the current date & time (local), and set start date to the first timestamp in the data
         if (firstLoad) {
+            // Set start date filter to the first timestamp in the data (converted to local datetime-local format)
+            const firstTimestamp = new Date(data.features[0].properties.isotst);
+            document.getElementById('startBox').value = firstTimestamp.toISOString().slice(0, 16);
+
             const now = new Date();
             document.getElementById('endBox').value = now.toISOString().slice(0, 16);
             firstLoad = false;
@@ -89,17 +90,11 @@ function toDateTimeLocalString(date) {
     return offsetDate.toISOString().slice(0, 16);
 }
 
-// Convert a UTC Date object into a valid datetime-local string (local time, no Z, no seconds)
-function toLocalDatetimeInputValue(utcDate) {
-    const localDate = new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
-    return localDate.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
-}
-
 function changeDateRange(timeframe) {
     let start;
     const now = new Date();
 
-    end = toLocalDatetimeInputValue(now);
+    end = now.toISOString().slice(0, 16);
 
     switch (timeframe) {
         case "month":
