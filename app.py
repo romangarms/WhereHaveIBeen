@@ -9,7 +9,7 @@ from flask import (
 )
 import requests
 from requests.auth import HTTPBasicAuth
-from datetime import timedelta
+from datetime import timedelta, datetime
 import os
 
 debug = False
@@ -125,9 +125,11 @@ def get_locations():
         device = request.args.get("device")
 
         if start_date:
-            params["from"] = start_date + "T00:00:00.000Z"
+            start_dt = datetime.fromisoformat(start_date)  # Parses local time from input like "2025-05-28T14:30"
+            params["from"] = start_dt.isoformat(timespec='milliseconds') + "Z"  # Convert to ISO with milliseconds + Z
         if end_date:
-            params["to"] = end_date + "T23:59:59.999Z"
+            end_dt = datetime.fromisoformat(end_date)
+            params["to"] = end_dt.isoformat(timespec='milliseconds') + "Z"
         if user:
             params["user"] = user
         if device:

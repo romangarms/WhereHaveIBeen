@@ -133,27 +133,27 @@
 
             <div class="subPanel">
                 <h4>Time frame</h4>
-                <p class="settingInfo">Filter the map to only shows GPS data between these two dates.</p>
+                <p class="settingInfo">Filter the map to only shows GPS data between these two dates. Time is in UTC.</p>
                 <div class="dateFilters" style="float:left; width: 50%;">
                     <h5>Start Date </h5>
 
-                    <input type="date" class="input-group date" id="startBox" onkeyup="" name="trip-start"
-                        value="2015-01-01" min="2015-01-01" max="2099-12-31" />
+                    <input type="datetime-local" class="input-group date" id="startBox" onkeyup="" name="trip-start"
+                        value="2015-01-01T00:00" min="2015-01-01T00:00" max="2099-12-31T23:59" />
                 </div>
                 <div class="dateFilters" style="float:left; width: 50%;">
                     <h5>End Date </h5>
-                    <input type="date" class="input-group date" id="endBox" onkeyup="" name="trip-start"
-                        value="2099-12-31" min="2015-01-01" max="2099-12-31" />
+                    <input type="datetime-local" class="input-group date" id="endBox" onkeyup="" name="trip-start"
+                        value="2099-12-31T23:59" min="2015-01-01T00:00" max="2099-12-31T23:59" />
                 </div>
 
                 <input type="button" class="btn btn-primary time-period-btn" value="Last Month"
                     onclick="changeDateRange('month')" />
                 <input type="button" class="btn btn-primary time-period-btn" value="Last Week"
                     onclick="changeDateRange('week')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Yesterday"
-                    onclick="changeDateRange('day')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Today"
-                    onclick="changeDateRange('today')" />
+                <input type="button" class="btn btn-primary time-period-btn" value="Last 48 Hours"
+                    onclick="changeDateRange('48hrs')" />
+                <input type="button" class="btn btn-primary time-period-btn" value="Last 24 Hours"
+                    onclick="changeDateRange('24hrs')" />
 
             </div>
             <div class="subPanel">

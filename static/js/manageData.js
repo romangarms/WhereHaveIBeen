@@ -21,6 +21,12 @@ function debuggingTest() {
     console.log(`Distance between points: ${dist} km`);
 }
 
+// Convert datetime-local value to ISO 8601 UTC string
+function toUTCISOString(id) {
+    const value = document.getElementById(id).value;
+    return value ? new Date(value).toISOString() : '';
+}
+
 /**
      * Fetch the users and devices from the server. This function is called after get user and device data succeeds. It attempts to pull the GPS data from the OwnTracks server and calls other methods to draw and handle extra details.
      */
@@ -30,8 +36,8 @@ async function fetchLocations() {
     try {
         // Build the query parameters
         const queryParams = new URLSearchParams({
-            startdate: document.getElementById('startBox').value,
-            enddate: document.getElementById('endBox').value,
+            startdate: toUTCISOString('startBox'),
+            enddate: toUTCISOString('endBox'),
             user: document.getElementById('userBox').value,
             device: document.getElementById('deviceBox').value
         }).toString();
@@ -51,11 +57,14 @@ async function fetchLocations() {
         //start date
         console.log("Start date of OwnTracks data is " + data.features[0].properties.isotst.substring(0, 10));
 
-        //set start date filter to the first date in the data
-        document.getElementById('startBox').value = data.features[0].properties.isotst.substring(0, 10);
+        // Set start date filter to the first timestamp in the data (converted to local datetime-local format)
+        const firstTimestamp = new Date(data.features[0].properties.isotst);
+        document.getElementById('startBox').value = firstTimestamp.toISOString().slice(0, 16);
 
+        // If it's the first load, set the end box to the current date & time (local)
         if (firstLoad) {
-            document.getElementById('endBox').value = new Date().toLocaleDateString('en-CA');
+            const now = new Date();
+            document.getElementById('endBox').value = now.toISOString().slice(0, 16);
             firstLoad = false;
         }
 
@@ -74,26 +83,40 @@ async function fetchLocations() {
     }
 }
 
+function toDateTimeLocalString(date) {
+    // Convert to local time and format as "YYYY-MM-DDTHH:MM"
+    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return offsetDate.toISOString().slice(0, 16);
+}
+
+// Convert a UTC Date object into a valid datetime-local string (local time, no Z, no seconds)
+function toLocalDatetimeInputValue(utcDate) {
+    const localDate = new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
+    return localDate.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
+}
+
 function changeDateRange(timeframe) {
     let start;
-    let end;
+    const now = new Date();
+
+    end = toLocalDatetimeInputValue(now);
 
     switch (timeframe) {
         case "month":
-            start = new Date(new Date().setMonth(new Date().getMonth() - 1)).toLocaleDateString('en-CA');
-            end = new Date().toLocaleDateString('en-CA');
+            const oneMonthAgo = new Date(now);
+            oneMonthAgo.setMonth(now.getMonth() - 1);
+            start = toDateTimeLocalString(oneMonthAgo);
             break;
         case "week":
-            start = new Date(new Date().setDate(new Date().getDate() - 7)).toLocaleDateString('en-CA');
-            end = new Date().toLocaleDateString('en-CA');
+            const oneWeekAgo = new Date(now);
+            oneWeekAgo.setDate(now.getDate() - 7);
+            start = toDateTimeLocalString(oneWeekAgo);
             break;
-        case "day":
-            start = new Date(new Date().setDate(new Date().getDate() - 1)).toLocaleDateString('en-CA');
-            end = new Date(new Date().setDate(new Date().getDate() - 1)).toLocaleDateString('en-CA');
+        case "48hrs":
+            start = toDateTimeLocalString(new Date(now.getTime() - 48 * 60 * 60 * 1000));
             break;
-        case "today":
-            start = new Date().toLocaleDateString('en-CA');
-            end = new Date().toLocaleDateString('en-CA');
+        case "24hrs":
+            start = toDateTimeLocalString(new Date(now.getTime() - 24 * 60 * 60 * 1000));
             break;
     }
     document.getElementById('endBox').value = end;
