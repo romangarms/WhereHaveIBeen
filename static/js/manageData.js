@@ -60,14 +60,22 @@ async function fetchLocations() {
     
         // If it's the first load, set the end box to the current date & time (local), and set start date to the first timestamp in the data
         if (firstLoad) {
-            // Set start date filter to the first timestamp in the data (converted to local datetime-local format)
-            const firstTimestamp = new Date(data.features[0].properties.isotst);
-            document.getElementById('startBox').value = firstTimestamp.toISOString().slice(0, 16);
-
-            const now = new Date();
-            document.getElementById('endBox').value = now.toISOString().slice(0, 16);
-            firstLoad = false;
+        // Helper to convert UTC date to local datetime-local format
+        function toLocalDatetimeInputValue(utcDate) {
+            const localDate = new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
+            return localDate.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
         }
+
+        // Set start date to first UTC timestamp in the data, converted to local
+        const firstTimestamp = new Date(data.features[0].properties.isotst);
+        document.getElementById('startBox').value = toLocalDatetimeInputValue(firstTimestamp);
+
+        // Set end date to current time, converted to local
+        const now = new Date();
+        document.getElementById('endBox').value = toLocalDatetimeInputValue(now);
+
+        firstLoad = false;
+    }
 
         //total gps points
         console.log("Total number of OwnTracks data points is " + data.features.length);
@@ -84,34 +92,35 @@ async function fetchLocations() {
     }
 }
 
-function toDateTimeLocalString(date) {
-    // Convert to local time and format as "YYYY-MM-DDTHH:MM"
-    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-    return offsetDate.toISOString().slice(0, 16);
+// Helper: converts UTC Date to local time string suitable for datetime-local input
+function toLocalDatetimeInputValue(utcDate) {
+    const localDate = new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
+    return localDate.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
 }
+
 
 function changeDateRange(timeframe) {
     let start;
     const now = new Date();
 
-    end = now.toISOString().slice(0, 16);
+    let end = toLocalDatetimeInputValue(now);
 
     switch (timeframe) {
         case "month":
             const oneMonthAgo = new Date(now);
             oneMonthAgo.setMonth(now.getMonth() - 1);
-            start = toDateTimeLocalString(oneMonthAgo);
+            start = toLocalDatetimeInputValue(oneMonthAgo);
             break;
         case "week":
             const oneWeekAgo = new Date(now);
             oneWeekAgo.setDate(now.getDate() - 7);
-            start = toDateTimeLocalString(oneWeekAgo);
+            start = toLocalDatetimeInputValue(oneWeekAgo);
             break;
         case "48hrs":
-            start = toDateTimeLocalString(new Date(now.getTime() - 48 * 60 * 60 * 1000));
+            start = toLocalDatetimeInputValue(new Date(now.getTime() - 48 * 60 * 60 * 1000));
             break;
         case "24hrs":
-            start = toDateTimeLocalString(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+            start = toLocalDatetimeInputValue(new Date(now.getTime() - 24 * 60 * 60 * 1000));
             break;
     }
     document.getElementById('endBox').value = end;

@@ -11,6 +11,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from datetime import timedelta, datetime
 import os
+import pytz
 
 debug = False
 INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
@@ -124,14 +125,20 @@ def get_locations():
         user = request.args.get("user")
         device = request.args.get("device")
 
+        # Convert from local time to UTC
         if start_date:
-            start_dt = datetime.fromisoformat(start_date)  # Parses local time from input like "2025-05-28T14:30"
-            params["from"] = start_dt.isoformat(timespec='milliseconds') + "Z"  # Convert to ISO with milliseconds + Z
+            local_dt = datetime.fromisoformat(start_date)  # interpreted as local time
+            utc_dt = local_dt.astimezone(pytz.UTC)  # convert to UTC
+            params["from"] = utc_dt.isoformat(timespec='milliseconds').replace("+00:00", "Z")
+
         if end_date:
-            end_dt = datetime.fromisoformat(end_date)
-            params["to"] = end_dt.isoformat(timespec='milliseconds') + "Z"
+            local_dt = datetime.fromisoformat(end_date)
+            utc_dt = local_dt.astimezone(pytz.UTC)
+            params["to"] = utc_dt.isoformat(timespec='milliseconds').replace("+00:00", "Z")
+
         if user:
             params["user"] = user
+
         if device:
             params["device"] = device
 
