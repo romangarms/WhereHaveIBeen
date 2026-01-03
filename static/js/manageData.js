@@ -28,16 +28,37 @@ function toUTCISOString(id) {
 }
 
 /**
-     * Fetch the users and devices from the server. This function is called after get user and device data succeeds. It attempts to pull the GPS data from the OwnTracks server and calls other methods to draw and handle extra details.
-     */
-async function fetchLocations() {
+ * Fetch the users and devices from the server. This function is called after get user and device data succeeds.
+ * It attempts to pull the GPS data from the OwnTracks server and calls other methods to draw and handle extra details.
+ * @param {Object} options - Optional parameters
+ * @param {string} options.startDate - Optional ISO start date (for incremental loading from cache)
+ * @param {string} options.endDate - Optional ISO end date
+ * @param {string} options.taskName - Optional task name for progress bar
+ */
+async function fetchLocations(options = {}) {
     let start = Date.now();
+    const taskName = options.taskName || "fetching locations";
 
     try {
+        // Use provided dates or fall back to DOM values
+        let startDate, endDate;
+
+        if (options.startDate) {
+            startDate = options.startDate;
+        } else {
+            startDate = toUTCISOString('startBox');
+        }
+
+        if (options.endDate) {
+            endDate = options.endDate;
+        } else {
+            endDate = toUTCISOString('endBox');
+        }
+
         // Build the query parameters
         const queryParams = new URLSearchParams({
-            startdate: toUTCISOString('startBox'),
-            enddate: toUTCISOString('endBox'),
+            startdate: startDate,
+            enddate: endDate,
             user: document.getElementById('userBox').value,
             device: document.getElementById('deviceBox').value
         }).toString();
@@ -54,42 +75,75 @@ async function fetchLocations() {
         // Parse the response JSON
         const data = await response.json();
 
+        // Handle empty data
+        if (!data.features || data.features.length === 0) {
+            console.log("No GPS data found for the specified time range");
+            let timeTaken = Date.now() - start;
+            completeTask(taskName, timeTaken);
+            return { features: [], isEmpty: true };
+        }
+
         //start date
         console.log("Start date of OwnTracks data is " + data.features[0].properties.isotst.substring(0, 10));
 
-    
+
         // If it's the first load, set the end box to the current date & time (local), and set start date to the first timestamp in the data
         if (firstLoad) {
-        // Helper to convert UTC date to local datetime-local format
-        function toLocalDatetimeInputValue(utcDate) {
-            const localDate = new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
-            return localDate.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
+            // Set start date to first UTC timestamp in the data, converted to local
+            const firstTimestamp = new Date(data.features[0].properties.isotst);
+            document.getElementById('startBox').value = toLocalDatetimeInputValue(firstTimestamp);
+
+            // Set end date to current time, converted to local
+            const now = new Date();
+            document.getElementById('endBox').value = toLocalDatetimeInputValue(now);
+
+            firstLoad = false;
         }
-
-        // Set start date to first UTC timestamp in the data, converted to local
-        const firstTimestamp = new Date(data.features[0].properties.isotst);
-        document.getElementById('startBox').value = toLocalDatetimeInputValue(firstTimestamp);
-
-        // Set end date to current time, converted to local
-        const now = new Date();
-        document.getElementById('endBox').value = toLocalDatetimeInputValue(now);
-
-        firstLoad = false;
-    }
 
         //total gps points
         console.log("Total number of OwnTracks data points is " + data.features.length);
 
 
         let timeTaken = Date.now() - start;
-        completeTask("fetching locations", timeTaken);
+        completeTask(taskName, timeTaken);
 
         // Return the fetched data
         return data;
     } catch (error) {
         setProgressBarError();  // Update progress bar with error state
         console.error('Fetch location error:', error);
+        return null;
     }
+}
+
+/**
+ * Get the latest timestamp from GPS data features
+ * @param {Object} data - GeoJSON data with features
+ * @returns {string|null} ISO timestamp of the latest GPS point
+ */
+function getLatestTimestamp(data) {
+    if (!data || !data.features || data.features.length === 0) {
+        return null;
+    }
+
+    // Features are typically ordered chronologically, so the last one is the latest
+    const lastFeature = data.features[data.features.length - 1];
+    return lastFeature.properties.isotst;
+}
+
+/**
+ * Get the earliest timestamp from GPS data features
+ * @param {Object} data - GeoJSON data with features
+ * @returns {string|null} ISO timestamp of the earliest GPS point
+ */
+function getEarliestTimestamp(data) {
+    if (!data || !data.features || data.features.length === 0) {
+        return null;
+    }
+
+    // Features are typically ordered chronologically, so the first one is the earliest
+    const firstFeature = data.features[0];
+    return firstFeature.properties.isotst;
 }
 
 // Helper: converts UTC Date to local time string suitable for datetime-local input
@@ -127,6 +181,11 @@ function changeDateRange(timeframe) {
     document.getElementById('startBox').value = start;
 
     console.log(`Start date: ${start}, End date: ${end}`);
+
+    // Mark that user has applied a custom time filter (disables cache)
+    if (typeof setCustomTimeFilter === 'function') {
+        setCustomTimeFilter();
+    }
 
     resetMap();
 }
