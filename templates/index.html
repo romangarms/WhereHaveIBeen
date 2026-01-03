@@ -293,6 +293,7 @@
         }
 
         setProgressMessage("Complete");
+        updateProgressBar();
         updateCacheStatusUI(newCacheData, user, device);
     }
 
@@ -343,7 +344,9 @@
             }
 
             let totalNumSegments = drivingLatlngs.length * 3 + flyingLatlngs.length * 3;
-            setProgressBarNumSteps(totalNumSegments + getNumTasksDone() + extraTasks + 1);
+            // Only add +1 for cache saving task if this is an all-time query
+            const cacheTask = isAllTimeQuery() ? 1 : 0;
+            setProgressBarNumSteps(totalNumSegments + getNumTasksDone() + extraTasks + cacheTask);
 
             let drivingBuffer = null;
             let flyingBuffer = null;
@@ -389,6 +392,7 @@
             }
 
             setProgressMessage("Complete");
+            updateProgressBar();
         } else {
             openForm();
         }
