@@ -23,7 +23,76 @@
 
     <div id="map"></div>
 
+    <!-- Settings Button Overlay -->
+    <button id="settingsButton" onclick="toggleSettingsPanel()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        Settings
+    </button>
 
+    <!-- Settings Panel Backdrop -->
+    <div id="settingsPanelBackdrop" onclick="closeSettingsPanel()"></div>
+
+    <!-- Settings Slide-in Panel -->
+    <div id="settingsPanel">
+        <div class="settingsPanelHeader">
+            <h1>Settings</h1>
+            <button id="settingsPanelClose" onclick="closeSettingsPanel()">&times;</button>
+        </div>
+        <div class="settingsPanelContent">
+            <div class="subPanel">
+                <h4>Map Settings</h4>
+                <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
+                    map.</p>
+                <h5>Hide Route <span class="info-icon">i
+                        <span class="tooltip-text">The route is only drawn when less than 500 GPS
+                            points are used. Adjust the date filters to see this!</span>
+                    </span></h5>
+                <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
+
+                <h5>Buffer Size <span class="info-icon">i
+                        <span class="tooltip-text">Change how large of a buffer is drawn around your route in
+                            kilometers.
+                            Note that larger values take longer to draw. Changing this will invalidate your cache.</span>
+                    </span></h5>
+
+                <p class="settingInfo">Default: 0.5km</p>
+                <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
+                    min="0.1" max="10" />
+            </div>
+
+            <div class="subPanel">
+                <h4>Routing Settings</h4>
+                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
+                    public OSRM one.</p>
+                <h5>Custom OSRM Router <span class="info-icon">i
+                        <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
+                    </span></h5>
+
+                <p class="settingInfo">Default: leave blank</p>
+                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
+            </div>
+
+            <div class="subPanel" id="cacheStatus" style="display: none;">
+                <h4>Cache <span class="info-icon">i
+                        <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
+                    </span></h4>
+                <p class="settingInfo">
+                    <strong>Cached:</strong> <span id="cacheDateRange">No cached data</span><br>
+                    <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
+                </p>
+                <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
+            </div>
+
+            <div class="subPanel">
+                <h4>Save and Apply Settings</h4>
+                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
+                    onclick="resetMap(map)" />
+            </div>
+        </div>
+    </div>
 
     <div id="map-shadow"></div>
 </div>
@@ -188,6 +257,10 @@
             if (cacheData.flying?.buffer) {
                 renderCachedBuffer(cacheData.flying.buffer, "red");
             }
+            // Restore cached metrics
+            if (cacheData.metrics) {
+                setCachedMetrics(cacheData.metrics);
+            }
         } catch (err) {
             console.error("Cache corruption detected, falling back to fresh load:", err);
             setProgressMessage("Cache error - recalculating...");
@@ -226,8 +299,8 @@
         const { drivingLatlngs, flyingLatlngs } = await filterData(newData);
         updateProgressBar();
 
-        // Get stats for new data
-        getOwntracksStats(newData);
+        // Get stats for new data (incremental - adds to cached metrics)
+        getOwntracksStatsIncremental(newData);
 
         // Calculate new segments
         let extraTasks = 0;
@@ -282,7 +355,12 @@
                 timestamp: latestTimestamp || cacheData.flying?.timestamp,
                 startTimestamp: cacheData.flying?.startTimestamp
             },
-            settings: currentSettings
+            settings: currentSettings,
+            metrics: {
+                highestAltitude: highestAltitude,
+                highestVelocity: highestVelocity,
+                totalDistance: distanceKm
+            }
         };
 
         try {
@@ -377,7 +455,12 @@
                         timestamp: latestTimestamp,
                         startTimestamp: earliestTimestamp
                     },
-                    settings: currentSettings
+                    settings: currentSettings,
+                    metrics: {
+                        highestAltitude: highestAltitude,
+                        highestVelocity: highestVelocity,
+                        totalDistance: distanceKm
+                    }
                 };
 
                 try {
@@ -530,62 +613,6 @@
                 <input type="button" class="btn btn-primary" value="Apply" onclick="setCustomTimeFilter(); resetMap(map)" />
             </div>
         </div>
-
-        <div class="innerPanel">
-            <div class="titlePanel">
-                <h1>Settings</h1>
-            </div>
-
-            <div class="subPanel">
-                <h4>Map Settings</h4>
-                <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
-                    map.</p>
-                <h5>Hide Route <span class="info-icon">i
-                        <span class="tooltip-text">The route is only drawn when less than 500 GPS
-                            points are used. Adjust the date filters to see this!</span>
-                    </span></h5>
-                <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
-
-                <h5>Buffer Size <span class="info-icon">i
-                        <span class="tooltip-text">Change how large of a buffer is drawn around your route in
-                            kilometers.
-                            Note that larger values take longer to draw. Changing this will invalidate your cache.</span>
-                    </span></h5>
-
-                <p class="settingInfo">Default: 0.5km</p>
-                <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
-                    min="0.1" max="10" />
-            </div>
-
-            <div class="subPanel">
-                <h4>Routing Settings</h4>
-                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
-                    public OSRM one.</p>
-                <h5>Custom OSRM Router <span class="info-icon">i
-                        <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
-                    </span></h5>
-
-                <p class="settingInfo">Default: leave blank</p>
-                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
-            </div>
-
-            <div class="subPanel" id="cacheStatus" style="display: none;">
-                <h4>Cache <span class="info-icon">i
-                        <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
-                    </span></h4>
-                <p class="settingInfo">
-                    <strong>Cached:</strong> <span id="cacheDateRange">No cached data</span><br>
-                    <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
-                </p>
-                <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
-            </div>
-
-            <div class="subPanel">
-                <h4>Save and Apply Settings</h4>
-                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
-                    onclick="resetMap(map)" />
-            </div>
-        </div>
     </div>
     <div id="rightPanel">
         <!-- MAP INFO -->
@@ -628,6 +655,44 @@
 {% block scripts %}
 
 <script>
+    // Settings Panel Functions
+    function toggleSettingsPanel() {
+        const panel = document.getElementById('settingsPanel');
+        const backdrop = document.getElementById('settingsPanelBackdrop');
+        const isOpen = panel.classList.contains('open');
+
+        if (isOpen) {
+            closeSettingsPanel();
+        } else {
+            openSettingsPanel();
+        }
+    }
+
+    function openSettingsPanel() {
+        const panel = document.getElementById('settingsPanel');
+        const backdrop = document.getElementById('settingsPanelBackdrop');
+        panel.classList.add('open');
+        backdrop.classList.add('open');
+    }
+
+    function closeSettingsPanel() {
+        const panel = document.getElementById('settingsPanel');
+        const backdrop = document.getElementById('settingsPanelBackdrop');
+        panel.classList.remove('open');
+        backdrop.classList.remove('open');
+    }
+
+    // Close settings panel on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const panel = document.getElementById('settingsPanel');
+            if (panel && panel.classList.contains('open')) {
+                closeSettingsPanel();
+            }
+        }
+    });
+
+    // Save settings on Apply button click
     document.getElementById('applySettingsButton').addEventListener('click', function () {
         fetch('/save_settings', {
             method: 'POST',

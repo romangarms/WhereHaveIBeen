@@ -353,8 +353,9 @@ function resetCoverageStats() {
 function getOwntracksStats(data) {
     let start = Date.now();
 
-    let highestAltitude = 0;
-    let highestVelocity = 0;
+    // Reset globals before calculating
+    highestAltitude = 0;
+    highestVelocity = 0;
 
     data.features.forEach(feature => {
         if (feature.properties.alt > highestAltitude) {
@@ -374,4 +375,43 @@ function getOwntracksStats(data) {
 
     let timeTaken = Date.now() - start;
     completeTask("OwnTracks stats", timeTaken);
+}
+
+/**
+ * Restore metrics from cache and update DOM
+ */
+function setCachedMetrics(metrics) {
+    if (metrics) {
+        highestAltitude = metrics.highestAltitude || 0;
+        highestVelocity = metrics.highestVelocity || 0;
+        distanceKm = metrics.totalDistance || 0;
+
+        document.getElementById('highestAltitude').innerHTML = "<p>" + highestAltitude + "m or " + Math.round((highestAltitude * 3.281) * 100) / 100 + "ft</p>";
+        document.getElementById('highestVelocity').innerHTML = "<p>" + highestVelocity + "kmh or " + Math.round((highestVelocity / 1.609) * 100) / 100 + "mph</p>";
+        document.getElementById('totalDist').innerHTML = "<p>" + Math.round(distanceKm * 100) / 100 + "km or " + Math.round((distanceKm / 1.609) * 100) / 100 + "mi</p>";
+    }
+}
+
+/**
+ * Incremental stats calculation - compares against existing global values
+ * Used when adding new data to cached data
+ */
+function getOwntracksStatsIncremental(data) {
+    let start = Date.now();
+
+    // Don't reset - compare against existing cached values
+    data.features.forEach(feature => {
+        if (feature.properties.alt > highestAltitude) {
+            highestAltitude = feature.properties.alt;
+        }
+        if (feature.properties.vel > highestVelocity) {
+            highestVelocity = feature.properties.vel;
+        }
+    });
+
+    document.getElementById('highestAltitude').innerHTML = "<p>" + highestAltitude + "m or " + Math.round((highestAltitude * 3.281) * 100) / 100 + "ft</p>";
+    document.getElementById('highestVelocity').innerHTML = "<p>" + highestVelocity + "kmh or " + Math.round((highestVelocity / 1.609) * 100) / 100 + "mph</p>";
+
+    let timeTaken = Date.now() - start;
+    completeTask("OwnTracks stats (incremental)", timeTaken);
 }

@@ -1,3 +1,6 @@
+// Track all OSRM routing controls so they can be properly removed
+let routingControls = [];
+
 /**
  * Given the location data, list of latlngs, and color, this function calculates the routes for all given latlngs and draws it on the map as a single object.
  * @param {*} data retrieved from fetchLocations();
@@ -163,6 +166,9 @@ async function calculateComplexRoute(latlngs) {
             routeWhileDragging: false,
             createMarker: function () { return null; }, // Disable default marker
         }).addTo(map);
+
+        // Track this control so it can be removed later
+        routingControls.push(control);
 
         control.hide(); // hide top right panel
 
@@ -399,6 +405,17 @@ function eraseRoute() {
 
 // Function to erase all layers from the map
 function eraseLayers() {
+    // Remove all routing controls first
+    routingControls.forEach(control => {
+        try {
+            map.removeControl(control);
+        } catch (e) {
+            // Control may already be removed
+        }
+    });
+    routingControls = [];
+
+    // Remove all other layers
     map.eachLayer((layer) => {
         layer.remove();
     });
