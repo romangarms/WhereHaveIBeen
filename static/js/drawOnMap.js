@@ -19,7 +19,14 @@ async function calculateAndDrawRoute(data, latlngsList, color, options = {}) {
             //no route is much quicker, but less accurate. Use the minDistance value to adjust accuracy.
             //Points between .01km of each other will be skipped if you pass in .01km
             if (data.features.length < 500) {
-                linestring = await calculateComplexRoute(latlngs);
+                try {
+                    linestring = await calculateComplexRoute(latlngs);
+                } catch (err) {
+                    // OSRM routing failed (e.g., no road route possible over water)
+                    // Fall back to simple route calculation
+                    console.warn("Complex route calculation failed, falling back to simple route:", err.message);
+                    linestring = await calculateSimpleRoute(latlngs);
+                }
             } else if (data.features.length < 3000) {
                 linestring = await calculateSimpleRoute(latlngs);
             } else if (data.features.length < 5000) {
