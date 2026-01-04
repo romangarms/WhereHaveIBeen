@@ -23,7 +23,76 @@
 
     <div id="map"></div>
 
+    <!-- Settings Button Overlay -->
+    <button id="settingsButton" onclick="toggleSettingsPanel()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        Settings
+    </button>
 
+    <!-- Settings Panel Backdrop -->
+    <div id="settingsPanelBackdrop" onclick="closeSettingsPanel()"></div>
+
+    <!-- Settings Slide-in Panel -->
+    <div id="settingsPanel">
+        <div class="settingsPanelHeader">
+            <h1>Settings</h1>
+            <button id="settingsPanelClose" onclick="closeSettingsPanel()">&times;</button>
+        </div>
+        <div class="settingsPanelContent">
+            <div class="subPanel">
+                <h4>Map Settings</h4>
+                <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
+                    map.</p>
+                <h5>Hide Route <span class="info-icon">i
+                        <span class="tooltip-text">The route is only drawn when less than 500 GPS
+                            points are used. Adjust the date filters to see this!</span>
+                    </span></h5>
+                <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
+
+                <h5>Buffer Size <span class="info-icon">i
+                        <span class="tooltip-text">Change how large of a buffer is drawn around your route in
+                            kilometers.
+                            Note that larger values take longer to draw. Changing this will invalidate your cache.</span>
+                    </span></h5>
+
+                <p class="settingInfo">Default: 0.5km</p>
+                <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
+                    min="0.1" max="10" />
+            </div>
+
+            <div class="subPanel">
+                <h4>Routing Settings</h4>
+                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
+                    public OSRM one.</p>
+                <h5>Custom OSRM Router <span class="info-icon">i
+                        <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
+                    </span></h5>
+
+                <p class="settingInfo">Default: leave blank</p>
+                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
+            </div>
+
+            <div class="subPanel" id="cacheStatus" style="display: none;">
+                <h4>Cache <span class="info-icon">i
+                        <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
+                    </span></h4>
+                <p class="settingInfo">
+                    <strong>Cached:</strong> <span id="cacheDateRange">No cached data</span><br>
+                    <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
+                </p>
+                <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
+            </div>
+
+            <div class="subPanel">
+                <h4>Save and Apply Settings</h4>
+                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
+                    onclick="resetMap(map)" />
+            </div>
+        </div>
+    </div>
 
     <div id="map-shadow"></div>
 </div>
@@ -39,7 +108,280 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
+    // Track if we're using cached data for this load
+    let usingCache = false;
+
+    // Track if user has applied a custom time filter this session
+    let customTimeFilterApplied = false;
+
+    /**
+     * Check if the current query is an "all time" query (eligible for caching)
+     * Caching only optimizes all-time queries, not custom date ranges
+     */
+    function isAllTimeQuery() {
+        // If user explicitly applied a time filter, it's not an all-time query
+        if (customTimeFilterApplied) {
+            return false;
+        }
+
+        // If this is the initial default values, it's an all-time query
+        const startBox = document.getElementById('startBox');
+        const endBox = document.getElementById('endBox');
+
+        if (startBox.value === '2015-01-01T00:00' && endBox.value === '2099-12-31T23:59') {
+            return true;
+        }
+
+        // Otherwise, the dates were set automatically by fetchLocations on first load
+        // which means it's the full data range (all-time)
+        return true;
+    }
+
+    /**
+     * Mark that user has applied a custom time filter
+     */
+    function setCustomTimeFilter() {
+        customTimeFilterApplied = true;
+    }
+
+    /**
+     * Reset the custom time filter flag and reload all-time data
+     */
+    function loadAllTimeData() {
+        customTimeFilterApplied = false;
+        // Reset to defaults - fetchLocations will set actual data range
+        document.getElementById('startBox').value = '2015-01-01T00:00';
+        document.getElementById('endBox').value = '2099-12-31T23:59';
+        firstLoad = true; // Reset so dates get auto-populated
+        resetMap();
+    }
+
+    /**
+     * Get current settings for cache validation
+     */
+    function getCurrentSettings() {
+        return {
+            bufferSize: parseFloat(document.getElementById('circleSize').value) || 0.5,
+            osrmUrl: document.getElementById('osrmURL').value || ''
+        };
+    }
+
     async function runTasks() {
+        const user = document.getElementById('userBox').value;
+        const device = document.getElementById('deviceBox').value;
+
+        // Initialize IndexedDB
+        try {
+            await initDB();
+        } catch (err) {
+            console.log("IndexedDB not available, proceeding without cache:", err);
+        }
+
+        // Check for valid cache
+        let cacheData = null;
+        let cacheValid = false;
+        const currentSettings = getCurrentSettings();
+
+        if (isAllTimeQuery()) {
+            try {
+                cacheData = await getCache(user, device);
+                if (cacheData) {
+                    // Validate cache data structure first
+                    if (!validateCacheData(cacheData)) {
+                        console.log("Cache data corrupted, clearing and recalculating");
+                        await clearCache(user, device);
+                        cacheData = null;
+                    } else {
+                        // Then validate settings match
+                        cacheValid = validateCacheSettings(
+                            cacheData.settings,
+                            currentSettings.bufferSize,
+                            currentSettings.osrmUrl
+                        );
+
+                        if (!cacheValid) {
+                            console.log("Cache invalidated due to settings change");
+                            cacheData = null;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error checking cache:", err);
+                cacheData = null;
+            }
+        }
+
+        if (cacheData && cacheValid) {
+            await runTasksWithCache(cacheData, user, device, currentSettings);
+        } else {
+            await runTasksFresh(user, device, currentSettings);
+        }
+    }
+
+    /**
+     * Run tasks using cached data - only fetch and calculate new data since cache timestamp
+     */
+    async function runTasksWithCache(cacheData, user, device, currentSettings) {
+        usingCache = true;
+        console.log("Using cached data, fetching only new data");
+
+        // Determine the latest timestamp from cache
+        const cacheTimestamp = cacheData.driving?.timestamp || cacheData.flying?.timestamp;
+        if (!cacheTimestamp) {
+            console.log("No valid timestamp in cache, falling back to fresh load");
+            return runTasksFresh(user, device, currentSettings);
+        }
+
+        // Set initial progress bar steps (fewer for cached load)
+        setProgressBarNumSteps(5);
+
+        // Check if logged in
+        const loggedIn = await checkIfLoggedIn();
+
+        if (!loggedIn) {
+            openForm();
+            return;
+        }
+
+        closeForm();
+        setProgressMessage("Loading from cache...");
+        completeTask("loading from cache", 0);
+        updateProgressBar();
+
+        // Immediately render cached buffers with corruption handling
+        try {
+            if (cacheData.driving?.buffer) {
+                renderCachedBuffer(cacheData.driving.buffer, "blue");
+                getBufferStats(cacheData.driving.buffer);
+            }
+            if (cacheData.flying?.buffer) {
+                renderCachedBuffer(cacheData.flying.buffer, "red");
+            }
+            // Restore cached metrics
+            if (cacheData.metrics) {
+                setCachedMetrics(cacheData.metrics);
+            }
+        } catch (err) {
+            console.error("Cache corruption detected, falling back to fresh load:", err);
+            setProgressMessage("Cache error - recalculating...");
+            // Clear corrupted cache
+            try {
+                await clearCache(user, device);
+            } catch (clearErr) {
+                console.error("Failed to clear corrupted cache:", clearErr);
+            }
+            return runTasksFresh(user, device, currentSettings);
+        }
+
+        // Fetch only new data since cache timestamp
+        // Add 1 second to avoid duplicate of last point
+        const cacheDate = new Date(cacheTimestamp);
+        cacheDate.setSeconds(cacheDate.getSeconds() + 1);
+        const newStartDate = cacheDate.toISOString();
+
+        setProgressMessage("Fetching new data...");
+        const newData = await fetchLocations({
+            startDate: newStartDate,
+            taskName: "fetching new data"
+        });
+
+        // Check if there's new data to process
+        if (!newData || newData.isEmpty || !newData.features || newData.features.length === 0) {
+            console.log("No new data since cache, using cached buffers only");
+            setProgressMessage("Complete - loaded from cache");
+            completeTask("no new data", 0);
+            updateCacheStatusUI(cacheData, user, device);
+            return;
+        }
+
+        // Filter and process new data
+        setProgressMessage("Processing new data...");
+        const { drivingLatlngs, flyingLatlngs } = await filterData(newData);
+        updateProgressBar();
+
+        // Get stats for new data (incremental - adds to cached metrics)
+        getOwntracksStatsIncremental(newData);
+
+        // Calculate new segments
+        let extraTasks = 0;
+        if (drivingLatlngs.length > 0) extraTasks++;
+        if (flyingLatlngs.length > 0) extraTasks++;
+
+        let totalNumSegments = drivingLatlngs.length * 3 + flyingLatlngs.length * 3;
+        setProgressBarNumSteps(totalNumSegments + getNumTasksDone() + extraTasks + 1);
+
+        // Clear the map to redraw merged buffers
+        eraseLayers();
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Calculate and merge buffers
+        let newDrivingBuffer = null;
+        let newFlyingBuffer = null;
+        let finalDrivingBuffer = cacheData.driving?.buffer || null;
+        let finalFlyingBuffer = cacheData.flying?.buffer || null;
+
+        setProgressMessage("Merging with cache...");
+        if (drivingLatlngs.length > 0) {
+            newDrivingBuffer = await calculateAndDrawRoute(newData, drivingLatlngs, "blue", {
+                cachedBuffer: cacheData.driving?.buffer
+            });
+            finalDrivingBuffer = newDrivingBuffer;
+        } else if (cacheData.driving?.buffer) {
+            renderCachedBuffer(cacheData.driving.buffer, "blue");
+        }
+
+        if (flyingLatlngs.length > 0) {
+            newFlyingBuffer = await calculateAndDrawRoute(newData, flyingLatlngs, "red", {
+                cachedBuffer: cacheData.flying?.buffer
+            });
+            finalFlyingBuffer = newFlyingBuffer;
+        } else if (cacheData.flying?.buffer) {
+            renderCachedBuffer(cacheData.flying.buffer, "red");
+        }
+
+        // Update cache with merged data
+        setProgressMessage("Saving cache...");
+        const latestTimestamp = getLatestTimestamp(newData);
+        const newCacheData = {
+            driving: {
+                buffer: finalDrivingBuffer,
+                timestamp: latestTimestamp || cacheData.driving?.timestamp,
+                startTimestamp: cacheData.driving?.startTimestamp
+            },
+            flying: {
+                buffer: finalFlyingBuffer,
+                timestamp: latestTimestamp || cacheData.flying?.timestamp,
+                startTimestamp: cacheData.flying?.startTimestamp
+            },
+            settings: currentSettings,
+            metrics: {
+                highestAltitude: highestAltitude,
+                highestVelocity: highestVelocity,
+                totalDistance: distanceKm
+            }
+        };
+
+        try {
+            await setCache(user, device, newCacheData);
+            completeTask("cache updated", 0);
+        } catch (err) {
+            console.error("Failed to update cache:", err);
+        }
+
+        setProgressMessage("Complete");
+        updateProgressBar();
+        updateCacheStatusUI(newCacheData, user, device);
+    }
+
+    /**
+     * Run tasks from scratch - no cache available or cache invalid
+     */
+    async function runTasksFresh(user, device, currentSettings) {
+        usingCache = false;
+        console.log("Running fresh calculation (no cache)");
+
         // how many steps to progress bar
         setProgressBarNumSteps(7);
 
@@ -51,10 +393,19 @@
             updateProgressBar();
 
             // locations
+            setProgressMessage("Fetching location data...");
             const data = await fetchLocations();
+
+            if (!data || data.isEmpty) {
+                console.log("No data available");
+                setProgressMessage("No data available");
+                return;
+            }
+
             updateProgressBar();
 
             // filter data
+            setProgressMessage("Processing data...");
             const { drivingLatlngs, flyingLatlngs } = await filterData(data)
             updateProgressBar();
 
@@ -63,7 +414,6 @@
 
             // extra buffer stats for each type of data, driving/flying
             let extraTasks = 0;
-            // making this if statement twice seems bad, but we want to update the progress bar length before we actually start calculating
             if (drivingLatlngs.length > 0) {
                 extraTasks++;
             }
@@ -72,17 +422,107 @@
             }
 
             let totalNumSegments = drivingLatlngs.length * 3 + flyingLatlngs.length * 3;
-            setProgressBarNumSteps(totalNumSegments + getNumTasksDone() + extraTasks);
+            // Only add +1 for cache saving task if this is an all-time query
+            const cacheTask = isAllTimeQuery() ? 1 : 0;
+            setProgressBarNumSteps(totalNumSegments + getNumTasksDone() + extraTasks + cacheTask);
 
+            let drivingBuffer = null;
+            let flyingBuffer = null;
+
+            setProgressMessage("Calculating routes...");
             if (drivingLatlngs.length > 0) {
-                calculateAndDrawRoute(data, drivingLatlngs, "blue")
+                drivingBuffer = await calculateAndDrawRoute(data, drivingLatlngs, "blue");
             }
 
             if (flyingLatlngs.length > 0) {
-                calculateAndDrawRoute(data, flyingLatlngs, "red")
+                flyingBuffer = await calculateAndDrawRoute(data, flyingLatlngs, "red");
             }
+
+            // Save to cache if this is an all-time query
+            if (isAllTimeQuery()) {
+                setProgressMessage("Saving cache...");
+                const earliestTimestamp = getEarliestTimestamp(data);
+                const latestTimestamp = getLatestTimestamp(data);
+
+                const cacheData = {
+                    driving: {
+                        buffer: drivingBuffer,
+                        timestamp: latestTimestamp,
+                        startTimestamp: earliestTimestamp
+                    },
+                    flying: {
+                        buffer: flyingBuffer,
+                        timestamp: latestTimestamp,
+                        startTimestamp: earliestTimestamp
+                    },
+                    settings: currentSettings,
+                    metrics: {
+                        highestAltitude: highestAltitude,
+                        highestVelocity: highestVelocity,
+                        totalDistance: distanceKm
+                    }
+                };
+
+                try {
+                    await setCache(user, device, cacheData);
+                    completeTask("cache saved", 0);
+                    console.log("Buffer cache saved successfully");
+                } catch (err) {
+                    console.error("Failed to save cache:", err);
+                }
+
+                updateCacheStatusUI(cacheData, user, device);
+            }
+
+            setProgressMessage("Complete");
+            updateProgressBar();
         } else {
             openForm();
+        }
+    }
+
+    /**
+     * Update the cache status display in the UI
+     */
+    async function updateCacheStatusUI(cacheData, user, device) {
+        const cacheStatusEl = document.getElementById('cacheStatus');
+        if (!cacheStatusEl) return;
+
+        try {
+            const dateRange = getCacheDateRange(cacheData);
+            const cacheSize = await getCacheSize(user, device);
+
+            if (dateRange) {
+                document.getElementById('cacheDateRange').textContent =
+                    formatCacheDate(dateRange.startDate) + ' - ' + formatCacheDate(dateRange.endDate);
+            } else {
+                document.getElementById('cacheDateRange').textContent = 'No cached data';
+            }
+
+            document.getElementById('cacheSize').textContent = formatBytes(cacheSize);
+            cacheStatusEl.style.display = 'block';
+        } catch (err) {
+            console.error("Error updating cache status UI:", err);
+        }
+    }
+
+    /**
+     * Clear cache for current user/device
+     */
+    async function clearCurrentCache() {
+        const user = document.getElementById('userBox').value;
+        const device = document.getElementById('deviceBox').value;
+
+        if (confirm('Clear cached data for ' + user + '/' + device + '? This will recalculate all routes on next load.')) {
+            try {
+                await clearCache(user, device);
+                console.log("Cache cleared");
+                document.getElementById('cacheDateRange').textContent = 'No cached data';
+                document.getElementById('cacheSize').textContent = '0 Bytes';
+                resetMap();
+            } catch (err) {
+                console.error("Error clearing cache:", err);
+            }
         }
     }
 
@@ -108,6 +548,7 @@
 
 <div id="progressBar">
     <div id="progressBarInner"></div>
+    <span id="progressBarMessage"></span>
 </div>
 
 
@@ -163,56 +604,13 @@
                     onclick="changeDateRange('48hrs')" />
                 <input type="button" class="btn btn-primary time-period-btn" value="Last 24 Hours"
                     onclick="changeDateRange('24hrs')" />
+                <input type="button" class="btn btn-success time-period-btn" value="All Time"
+                    onclick="loadAllTimeData()" />
 
             </div>
             <div class="subPanel">
                 <h4>Apply Filters</h4>
-                <input type="button" class="btn btn-primary" value="Apply" onclick="resetMap(map)" />
-            </div>
-        </div>
-
-        <div class="innerPanel">
-            <div class="titlePanel">
-                <h1>Visual settings</h1>
-            </div>
-
-            <div class="subPanel">
-                <h4>Map Settings</h4>
-                <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
-                    map.</p>
-                <h5>Hide Route <span class="info-icon">i
-                        <span class="tooltip-text">The route is only drawn when less than 500 GPS
-                            points are used. Adjust the date filters to see this!</span>
-                    </span></h5>
-                <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
-
-                <h5>Buffer Size <span class="info-icon">i
-                        <span class="tooltip-text">Change how large of a buffer is drawn around your route in
-                            kilometers.
-                            Note that larger values take longer to draw.</span>
-                    </span></h5>
-
-                <p class="settingInfo">Default: 0.5km</p>
-                <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
-                    min="0.1" max="10" />
-            </div>
-
-            <div class="subPanel">
-                <h4>Routing Settings</h4>
-                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
-                    public OSRM one.</p>
-                <h5>Custom OSRM Router <span class="info-icon">i
-                        <span class="tooltip-text">Change the URL used for the OSRM router</span>
-                    </span></h5>
-
-                <p class="settingInfo">Default: leave blank</p>
-                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
-            </div>
-
-            <div class="subPanel">
-                <h4>Save and Apply Settings</h4>
-                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
-                    onclick="resetMap(map)" />
+                <input type="button" class="btn btn-primary" value="Apply" onclick="setCustomTimeFilter(); resetMap(map)" />
             </div>
         </div>
     </div>
@@ -257,6 +655,44 @@
 {% block scripts %}
 
 <script>
+    // Settings Panel Functions
+    function toggleSettingsPanel() {
+        const panel = document.getElementById('settingsPanel');
+        const backdrop = document.getElementById('settingsPanelBackdrop');
+        const isOpen = panel.classList.contains('open');
+
+        if (isOpen) {
+            closeSettingsPanel();
+        } else {
+            openSettingsPanel();
+        }
+    }
+
+    function openSettingsPanel() {
+        const panel = document.getElementById('settingsPanel');
+        const backdrop = document.getElementById('settingsPanelBackdrop');
+        panel.classList.add('open');
+        backdrop.classList.add('open');
+    }
+
+    function closeSettingsPanel() {
+        const panel = document.getElementById('settingsPanel');
+        const backdrop = document.getElementById('settingsPanelBackdrop');
+        panel.classList.remove('open');
+        backdrop.classList.remove('open');
+    }
+
+    // Close settings panel on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const panel = document.getElementById('settingsPanel');
+            if (panel && panel.classList.contains('open')) {
+                closeSettingsPanel();
+            }
+        }
+    });
+
+    // Save settings on Apply button click
     document.getElementById('applySettingsButton').addEventListener('click', function () {
         fetch('/save_settings', {
             method: 'POST',

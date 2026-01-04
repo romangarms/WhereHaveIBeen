@@ -1,10 +1,16 @@
+// Track all OSRM routing controls so they can be properly removed
+let routingControls = [];
+
 /**
  * Given the location data, list of latlngs, and color, this function calculates the routes for all given latlngs and draws it on the map as a single object.
  * @param {*} data retrieved from fetchLocations();
  * @param {*} latlngsList list of drivingLatlngs or flyingLatlngs
  * @param {*} color "blue" or "green" or "red"
+ * @param {Object} options - Optional parameters for caching
+ * @param {Object} options.cachedBuffer - Previously cached buffer to merge with
+ * @returns {Object} The final buffer GeoJSON
  */
-async function calculateAndDrawRoute(data, latlngsList, color) {
+async function calculateAndDrawRoute(data, latlngsList, color, options = {}) {
     let lineStrings = [];
     for (const latlngs of latlngsList) {
         //drawing buffer
@@ -13,10 +19,17 @@ async function calculateAndDrawRoute(data, latlngsList, color) {
 
             //complex route buffer can only handle 500 points or less
             //simple route buffer can handle any number, but gets pretty slow north of 3000
-            //no route is much quicker, but less accurate. Use the minDistance value to adjust accuracy. 
+            //no route is much quicker, but less accurate. Use the minDistance value to adjust accuracy.
             //Points between .01km of each other will be skipped if you pass in .01km
             if (data.features.length < 500) {
-                linestring = await calculateComplexRoute(latlngs);
+                try {
+                    linestring = await calculateComplexRoute(latlngs);
+                } catch (err) {
+                    // OSRM routing failed (e.g., no road route possible over water)
+                    // Fall back to simple route calculation
+                    console.warn("Complex route calculation failed, falling back to simple route:", err.message);
+                    linestring = await calculateSimpleRoute(latlngs);
+                }
             } else if (data.features.length < 3000) {
                 linestring = await calculateSimpleRoute(latlngs);
             } else if (data.features.length < 5000) {
@@ -32,8 +45,8 @@ async function calculateAndDrawRoute(data, latlngsList, color) {
 
     }
 
-    createUnifiedBuffer(lineStrings, 0.01, color);
-
+    const buffer = await createUnifiedBuffer(lineStrings, 0.01, color, options);
+    return buffer;
 }
 
 
@@ -154,6 +167,9 @@ async function calculateComplexRoute(latlngs) {
             createMarker: function () { return null; }, // Disable default marker
         }).addTo(map);
 
+        // Track this control so it can be removed later
+        routingControls.push(control);
+
         control.hide(); // hide top right panel
 
         control.on('routesfound', function (e) {
@@ -182,21 +198,41 @@ async function calculateComplexRoute(latlngs) {
  * @param {*} lineStrings array of linestrings to buffer
  * @param {*} tolerance turf.simplify tolerance
  * @param {*} color color for buffer on map
+ * @param {Object} options - Optional parameters for caching
+ * @param {Object} options.cachedBuffer - Previously cached buffer to merge with
+ * @param {boolean} options.skipRender - If true, only calculate buffer without rendering
+ * @returns {Object} The unified buffer GeoJSON
  */
-async function createUnifiedBuffer(lineStrings, tolerance, color) {
-    let unifiedBuffer = null;
+async function createUnifiedBuffer(lineStrings, tolerance, color, options = {}) {
+    let unifiedBuffer = options.cachedBuffer || null;
 
     for (const lineString of lineStrings) {
         // Buffer each lineString and merge them into a single buffer
         const buffer = await drawBuffer(lineString, tolerance);
         if (unifiedBuffer) {
-            unifiedBuffer = turf.union(unifiedBuffer, buffer);
+            try {
+                unifiedBuffer = turf.union(unifiedBuffer, buffer);
+            } catch (err) {
+                console.error("Error merging buffers:", err);
+                // If union fails, just use the new buffer
+                unifiedBuffer = buffer;
+            }
         } else {
             unifiedBuffer = buffer;
         }
 
         getLinestringStats(lineString);
         updateProgressBar();
+    }
+
+    // If no lineStrings but we have a cached buffer, use that
+    if (!unifiedBuffer && options.cachedBuffer) {
+        unifiedBuffer = options.cachedBuffer;
+    }
+
+    // If skipRender is true, just return the buffer without rendering
+    if (options.skipRender || !unifiedBuffer) {
+        return unifiedBuffer;
     }
 
     let bufferColor = "rgba(0, 0, 255, 0.4)"; // Default color is blue
@@ -228,6 +264,58 @@ async function createUnifiedBuffer(lineStrings, tolerance, color) {
 
     getBufferStats(unifiedBuffer);
     updateProgressBar();
+
+    return unifiedBuffer;
+}
+
+/**
+ * Render a cached buffer directly to the map
+ * @param {Object} buffer - The cached buffer GeoJSON
+ * @param {string} color - "blue", "green", or "red"
+ */
+function renderCachedBuffer(buffer, color) {
+    if (!buffer) return;
+
+    let bufferColor = "rgba(0, 0, 255, 0.4)";
+    if (color == "blue") {
+        bufferColor = "rgba(0, 0, 255, 0.4)";
+    } else if (color == "green") {
+        bufferColor = "rgba(0, 255, 0, 0.4)";
+    } else if (color == "red") {
+        bufferColor = "rgba(255, 0, 0, 0.4)";
+    }
+
+    let bufferLayer = L.geoJSON(buffer, {
+        style: function () {
+            return { color: bufferColor, weight: 2 };
+        }
+    }).addTo(map);
+
+    try {
+        const bounds = bufferLayer.getBounds();
+        map.fitBounds(bounds);
+    } catch (err) {
+        console.log("No bounds found for cached buffer, err: " + err);
+    }
+}
+
+/**
+ * Merge a new buffer with a cached buffer
+ * @param {Object} cachedBuffer - The cached buffer GeoJSON
+ * @param {Object} newBuffer - The new buffer GeoJSON
+ * @returns {Object} The merged buffer GeoJSON
+ */
+function mergeBuffers(cachedBuffer, newBuffer) {
+    if (!cachedBuffer) return newBuffer;
+    if (!newBuffer) return cachedBuffer;
+
+    try {
+        return turf.union(cachedBuffer, newBuffer);
+    } catch (err) {
+        console.error("Error merging buffers:", err);
+        // If merge fails, return the new buffer
+        return newBuffer;
+    }
 }
 
 /**
@@ -317,6 +405,17 @@ function eraseRoute() {
 
 // Function to erase all layers from the map
 function eraseLayers() {
+    // Remove all routing controls first
+    routingControls.forEach(control => {
+        try {
+            map.removeControl(control);
+        } catch (e) {
+            // Control may already be removed
+        }
+    });
+    routingControls = [];
+
+    // Remove all other layers
     map.eachLayer((layer) => {
         layer.remove();
     });

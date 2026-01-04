@@ -2,11 +2,12 @@ let tasksDone = [];
 let progressBarNumSteps = 5;
 let progressBarError = false;
 let progressBarCurrentStep = 0;
+let currentProgressMessage = '';
 
 /**
  * Mark a task complete and update the progress bar. Prints to console with what task finished and how long it took to complete.
- * @param {*} task 
- * @param {*} timeTaken 
+ * @param {*} task
+ * @param {*} timeTaken
  */
 function completeTask(task, timeTaken) {
     tasksDone.push(task);
@@ -14,6 +15,18 @@ function completeTask(task, timeTaken) {
 
     // Allow the browser to repaint after the task completes
     setTimeout(updateProgressBar, 0);
+}
+
+/**
+ * Set the progress bar message
+ * @param {string} message - The message to display
+ */
+function setProgressMessage(message) {
+    currentProgressMessage = message;
+    const messageEl = document.getElementById("progressBarMessage");
+    if (messageEl) {
+        messageEl.textContent = message;
+    }
 }
 
 /**
@@ -74,5 +87,6 @@ function setProgressBarError() {
 function resetProgressBar() {
     tasksDone = [];
     progressBarError = false;
+    setProgressMessage('');
     updateProgressBar();
 }
