@@ -1,11 +1,10 @@
 import sys
 from flask import (
     Flask,
-    redirect,
-    render_template,
     jsonify,
     request,
     session,
+    send_from_directory,
 )
 import requests
 from requests.auth import HTTPBasicAuth
@@ -13,7 +12,7 @@ from datetime import timedelta, datetime
 import os
 import pytz
 
-debug = False
+debug = True
 INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 
 if debug:
@@ -29,31 +28,21 @@ app.permanent_session_lifetime = timedelta(days=30)
 
 DEFAULT_OSRM_URL = os.getenv("WHIB_DEFAULT_OSRM_URL")
 
+# Serve React static files
+@app.route('/assets/<path:path>')
+def serve_assets(path):
+    return send_from_directory('frontend/dist/assets', path)
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
-@app.route("/about")
-def guide():
-    return render_template("about.html")
-
-
-@app.route("/setup")
-def setup():
-    return render_template("setup.html")
-
+# API Routes (keep these above the SPA fallback)
 
 """Sign out by deleting cookie
 """
-
 
 @app.route("/sign_out")
 def sign_out():
     # Clear the session data
     session.clear()
-    return redirect("/")
+    return jsonify({"message": "Signed out successfully"})
 
 
 """Create cookie with OwnTracks login info and URL
@@ -76,7 +65,7 @@ def login():
         session["password"] = password
         session["serverurl"] = serverurl
 
-        return redirect("/")
+        return jsonify({"message": "Login successful"})
 
 @app.route("/save_settings", methods=["POST"])
 def save_settings():
@@ -95,6 +84,10 @@ def save_settings():
     
 @app.route("/get_settings")
 def get_settings():
+    # Check if user is authenticated
+    if not session.get("username") or not session.get("serverurl"):
+        return jsonify({"error": "Not authenticated"}), 401
+
     return jsonify({
         "circleSize": session.get("circle_size"),
         "osrmURL": session.get("osrm_url")
@@ -109,6 +102,10 @@ def get_settings():
 
 @app.route("/locations")
 def get_locations():
+    # Check if user is authenticated
+    if not session.get("username") or not session.get("serverurl"):
+        return jsonify({"error": "Not authenticated"}), 401
+
     try:
         # these were reasonable defaults, probably don't need them
         params = {
@@ -161,8 +158,11 @@ def get_locations():
 
 @app.route("/usersdevices")
 def get_users_devices():
-    try:
+    # Check if user is authenticated
+    if not session.get("username") or not session.get("serverurl"):
+        return jsonify({"error": "Not authenticated"}), 401
 
+    try:
         # go make the request with login info from cookie
         response = requests.get(
             session.get("serverurl") + "/api/0/last",
@@ -224,6 +224,19 @@ def proxy_route():
 
     # Return the response back to the client
     return jsonify(response.json())
+
+
+# SPA Fallback Route - must be last
+# Serve React app for all other routes
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_spa(path):
+    # If path exists in dist folder, serve it (e.g., favicon, manifest)
+    if path and os.path.exists(os.path.join('frontend/dist', path)):
+        return send_from_directory('frontend/dist', path)
+
+    # Otherwise serve the React app
+    return send_from_directory('frontend/dist', 'index.html')
 
 
 if __name__ == "__main__":

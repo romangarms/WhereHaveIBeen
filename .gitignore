@@ -13,3 +13,10 @@ fly.toml
 
 #pycache
 __pycache__/
+
+#LLM
+.claude/
+
+#Frontend build
+frontend/dist/
+frontend/node_modules/
