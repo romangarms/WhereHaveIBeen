@@ -8,8 +8,7 @@
 
 <div id="infoPanel">
 
-    <h1 id="title">What you will need </h1>
-    <br>
+    <h1>What you will need</h1>
     <ul>
         <li>Your own OwnTracks server</li>
         <li>OwnTracks app on your phone</li>
@@ -17,67 +16,53 @@
         <li>Your own domain (recommended, not required)</li>
     </ul>
 
-    <h1 id="title">What you will do</h1>
-    <br>
+    <h1>What you will do</h1>
 
     <h3>Server Setup</h3>
     <p>First things first, get your own OwnTracks server set up. I'd offer to let you use mine, but I don't want to
-        be responsible for your location data! The main things to look at are the official OwnTracks guide, and
-        posts by real people trying to set it up</p>
-    <a href="https://owntracks.org/booklet/guide/quicksetup/">Official OwnTracks Guide</a>
-    <a href="https://bhdouglass.com/blog/self-hosted-device-tracking-with-owntracks/">Brian Douglass Guide</a>
-
+    be responsible for your location data! The main things to look at are the official OwnTracks guide, and
+    posts by real people trying to set it up.</p>
+    <p>
+        <a href="https://owntracks.org/booklet/guide/quicksetup/">Official OwnTracks Guide</a>
+        <a href="https://bhdouglass.com/blog/self-hosted-device-tracking-with-owntracks/">Brian Douglass Guide</a>
+    </p>
     <p>You need to get the server up and running, port forward as necessary so your server can be reached on the
-        internet, then get your phone set up to start pinging your server!</p>
-
-    <br>
+    internet, then get your phone set up to start pinging your server!</p>
 
     <h3>OwnTracks App</h3>
     <p>Next up is to grab the OwnTracks app for iOS or Android. The OwnTracks mobile app takes your location and uploads
-        it to your OwnTracks server every few minutes. You're welcome to tweak how often it updates, but I use the
-        defaults. Make sure to sign in using your info from the previous server setup part.</p>
+    it to your OwnTracks server every few minutes. You're welcome to tweak how often it updates, but I use the
+    defaults. Make sure to sign in using your info from the previous server setup part.</p>
 
-    <br>
-
-    <h3>OSRM Server PLEASE READ (recommended, not required)</h3>
+    <h3>OSRM Server (recommended, not required)</h3>
     <p>To use the complex router that draws the route between each of your GPS points, you'll need an Open Source
-        Routing Machine (or OSRM) server.
-    </p>
-
+    Routing Machine (or OSRM) server.</p>
 
     <p>If you're content with staying on the west coast, you can use my server for this. I host an Open Source
-        Routing Machine server for Washington, Oregon, and California as those are the only areas I really visit.
-        My server can be accessed at "http://mini.romangarms.com:5001/route/v1/{url}". Note, this is my own server for
-        my own purposes, it may change or go down at any time.
-    </p>
+    Routing Machine server for Washington, Oregon, and California as those are the only areas I really visit.
+    My server can be accessed at <code>http://mini.romangarms.com:5001/route/v1/{url}</code>. Note, this is my own server for
+    my own purposes, it may change or go down at any time.</p>
 
     <p>If you live elsewhere, you'll need to use a different one, or host your own. To use the public OSRM server,
-        you
-        can use the address "http://router.project-osrm.org/route/v1/{url}" in the proxy function in app.py. This should
-        works just fine, but OSRM's documentation asks that you please don't abuse their public API.
+    you can use the address <code>http://router.project-osrm.org/route/v1/{url}</code> in the proxy function in app.py. This should
+    work just fine, but OSRM's documentation asks that you please don't abuse their public API.</p>
 
-        Otherwise, to make your own, you can do that by following the guide linked below.
-    </p>
+    <p>Otherwise, to make your own, you can do that by following the guide linked below.</p>
 
     <p>Additionally, to use any of the options other than the one I host, you'll need to host this flask app yourself,
-        as the OSRM server is hardcoded. I'll fix this in a future update.
-    </p>
+    as the OSRM server is hardcoded. I'll fix this in a future update.</p>
 
-    <a href="https://github.com/Project-OSRM/osrm-backend">OSRM Backend</a>
+    <p><a href="https://github.com/Project-OSRM/osrm-backend">OSRM Backend on GitHub</a></p>
 
-    <p>Note! If you want more than one region, you can combine multiple .osm.pbf files into one to host with a tool
-        called "osmium-tool".</p>
-
-    <br>
+    <p>Note: If you want more than one region, you can combine multiple .osm.pbf files into one to host with a tool
+    called "osmium-tool".</p>
 
     <h3>Domain (recommended, not required)</h3>
     <p>You may have noticed this is all under the lovely "romangarms.com" domain. You don't need to do this, you
-        could just enter your IP address into the url bar in your browser, but it makes things nice.</p>
+    could just enter your IP address into the url bar in your browser, but it makes things nice.</p>
 
     <p>I own the domain romangarms.com through CloudFlare and host WhereHaveIBeen at tracker.romangarms.com via Fly.io.
-        Thess are both one of many option for both services, use whatever you know best.</p>
-
-</div>
+    These are both one of many options for both services, use whatever you know best.</p>
 
 </div>
 

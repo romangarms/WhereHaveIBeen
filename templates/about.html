@@ -6,10 +6,16 @@
 
 {% block main %}
 
-<div id="map"></div>
+<div id="map-container">
+    <div id="map"></div>
+    <div id="map-shadow"></div>
+    <div id="progressBar">
+        <div id="progressBarInner"></div>
+        <span id="progressBarMessage"></span>
+    </div>
+</div>
 
 <script>
-
     async function runFakeTasks() {
         // Initialize the map
         var map = L.map('map').setView([37.7749, -122.4194], 13);
@@ -21,7 +27,7 @@
 
         // Fake data: Coordinates for markers and route
         var fakeData = [
-            { lat: 37.7743, lng: -122.4202, name: 'Start Point' },  // Start Point
+            { lat: 37.7743, lng: -122.4202, name: 'Start Point' },
             { lat: 37.7949, lng: -122.3936, name: 'Point A' },
             { lat: 37.8063, lng: -122.4076, name: 'Point B' },
             { lat: 37.8037, lng: -122.4152, name: 'Point C' },
@@ -48,7 +54,7 @@
 
         // Add the route to the map
         const buffer = await drawBuffer(lineString, -1);
-        let bufferColor = "rgba(0, 0, 255, 0.4)"; // Default color is blue
+        let bufferColor = "rgba(0, 0, 255, 0.4)";
         // Convert the buffer to GeoJSON and add it to the map
         L.geoJSON(buffer, {
             style: function () {
@@ -58,34 +64,10 @@
         completeTask("done", 0);
     }
 
-    //run on page load
+    // Run on page load
     window.onload = function () {
         runFakeTasks();
     };
-</script>
-
-<script>
-
-    function filterMap() {
-        console.log("Filtering map");
-
-        try {
-            eraseRoute();
-            eraseLayers();
-        }
-        catch (err) {
-            console.log("No map data to erase");
-        }
-
-
-        //Remake route
-        // Add a tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-
-        fetchLocations();
-    }
 
     function eraseRoute() {
         map.removeControl(control);
@@ -107,48 +89,30 @@
 
     function refreshPage() {
         window.location.reload();
-    } 
+    }
 </script>
-
-<div id="progressBar">
-    <div id="progressBarInner"></div>
-</div>
 
 <div id="infoBox">
     <div id="leftPanel">
-        <div class="innerPanel">
-            <h1 id="title">Ever heard of a little game called Forza Horizon? </h1>
-            <p>I've always found the idea of a map that shows the places you've discovered fascinating. Forza Horizon
-                implemented a map that had every road greyed out until you drove over it once. It encouraged you to
-                drive
-                every road in the entire game, exploring the map. </p>
+        <h1>Ever heard of a little game called Forza Horizon?</h1>
+        <p>I've always found the idea of a map that shows the places you've discovered fascinating. Forza Horizon
+        implemented a map that had every road greyed out until you drove over it once. It encouraged you to
+        drive every road in the entire game, exploring the map.</p>
+        <p>I've been looking for more excuses to get out and see things I haven't seen before, so I built
+        WhereHaveIBeen to mark which areas of the "map" have already been discovered by me.</p>
+        <div class="subPanel">
+            <h4>What is OwnTracks?</h4>
+            <p>OwnTracks is an open-source alternative to other tracking apps like
+            Find My, or Life360. The interesting part is that you host the server yourself. You have access to all of
+            your location history.</p>
         </div>
-        <div class="innerPanel">
-            <p>I've been looking for more excuses to get out and see things I haven't seen before, so I built
-                WhereHaveIBeen
-                to mark which areas of the "map" have already been discovered by me.</p>
-        </div>
-        <div class="innerPanel">
-            <p>OwnTracks was a good starting point. OwnTracks is an open-source alternative to other tracking apps like
-                Find
-                My, or Life360. The interesting part is that you host the server yourself. You have access to all of
-                your
-                location history</p>
-        </div>
-        <div class="innerPanel">
+        <div class="subPanel">
+            <h4>What is WhereHaveIBeen?</h4>
             <p>WhereHaveIBeen is a web app to display your OwnTracks location history while doing some extra
-                processing to snap the routes between each location update to roads. This allows you to see the exact
-                route you've taken, without wasting your phone battery by uploading location every second.
-            </p>
-            <p>Want to learn how to use it? Check the "Setup Guide" in the navbar.</p>
+            processing to snap the routes between each location update to roads. This allows you to see the exact
+            route you've taken, without wasting your phone battery by uploading location every second.</p>
+            <p>Want to learn how to use it? Check the <a href="/setup">Setup Guide</a> in the navbar.</p>
         </div>
-    </div>
-    <div id="rightPanel">
-        <h1 id="title">Remove Elements </h1>
-
-        <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute()" />
-        <input type="button" class="btn btn-danger" value="Remove Markers" onclick="eraseMarkers()" />
-        <input type="button" class="btn btn-primary" value="Refresh" onclick="refreshPage()" />
     </div>
 </div>
 

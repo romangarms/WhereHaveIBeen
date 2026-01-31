@@ -10,15 +10,15 @@
 <!-- Get OwnTracks server info so we can read data from it -->
 <div id="map-container">
     <div class="form-popup" id="myForm">
-        <form action="/login" method="POST">
-
-            <h3>Enter OwnTrack Login and URL</h3>
-
-            <input type='text' placeholder='username' name='username' autocomplete="on" />
-            <input type='password' placeholder='password' name='password' autocomplete="on" />
-            <input type='serverurl' placeholder='https://[your domain]' name='serverurl' autocomplete="on" /></p>
-            <input class="btn btn-success" type='submit' value='Login' />
-        </form>
+        <h3>Enter OwnTrack Login and URL</h3>
+        <div class="form-container">
+            <form action="/login" method="POST">
+                <input type='text' placeholder='username' name='username' autocomplete="on" />
+                <input type='password' placeholder='password' name='password' autocomplete="on" />
+                <input type='text' placeholder='https://[your domain]' name='serverurl' autocomplete="on" />
+                <input class="btn btn-success" type='submit' value='Login' />
+            </form>
+        </div>
     </div>
 
     <div id="map"></div>
@@ -95,6 +95,11 @@
     </div>
 
     <div id="map-shadow"></div>
+
+    <div id="progressBar">
+        <div id="progressBarInner"></div>
+        <span id="progressBarMessage"></span>
+    </div>
 </div>
 <script>
     //debuggingTest();
@@ -544,12 +549,6 @@
 
 
 </script>
-
-
-<div id="progressBar">
-    <div id="progressBarInner"></div>
-    <span id="progressBarMessage"></span>
-</div>
 
 
 <div id="infoBox">
