@@ -13,7 +13,7 @@ from datetime import timedelta, datetime
 import os
 import pytz
 
-debug = True
+debug = False
 INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 
 if debug:
