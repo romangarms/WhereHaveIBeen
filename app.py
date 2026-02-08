@@ -12,15 +12,11 @@ from requests.auth import HTTPBasicAuth
 from datetime import timedelta, datetime
 import os
 import pytz
+from dotenv import load_dotenv
 
-debug = False
 INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 
-if debug:
-    # Load environment variables from .env file
-    from dotenv import load_dotenv
-
-    load_dotenv()  # take environment variables from .env.
+load_dotenv()
 
 app = Flask(__name__)
 
