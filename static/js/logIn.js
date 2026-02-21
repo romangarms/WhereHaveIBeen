@@ -99,7 +99,8 @@ async function getUserSettings() {
  */
 function openForm() {
     document.getElementById("myForm").style.display = "block";
-    document.getElementById("sign_out").style.display = "none"
+    document.getElementById("registerForm").style.display = "none";
+    document.getElementById("sign_out").style.display = "none";
 }
 
 /**
@@ -107,5 +108,73 @@ function openForm() {
  */
 function closeForm() {
     document.getElementById("myForm").style.display = "none";
+    document.getElementById("registerForm").style.display = "none";
     document.getElementById("sign_out").style.display = "block";
+}
+
+/**
+ * Switch to the registration form
+ */
+function showRegisterForm() {
+    document.getElementById("myForm").style.display = "none";
+    document.getElementById("registerForm").style.display = "block";
+    document.getElementById("registerMessage").textContent = "";
+    document.getElementById("registerMessage").className = "form-message";
+}
+
+/**
+ * Switch back to the login form
+ */
+function showLoginForm() {
+    document.getElementById("registerForm").style.display = "none";
+    document.getElementById("myForm").style.display = "block";
+}
+
+/**
+ * Submit registration form
+ */
+async function submitRegistration() {
+    const username = document.getElementById("regUsername").value.trim();
+    const password = document.getElementById("regPassword").value;
+    const passwordConfirm = document.getElementById("regPasswordConfirm").value;
+    const messageEl = document.getElementById("registerMessage");
+
+    // Validate
+    if (!username || !password) {
+        messageEl.textContent = "Username and password are required.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    if (password !== passwordConfirm) {
+        messageEl.textContent = "Passwords do not match.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    try {
+        const response = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 201) {
+            messageEl.textContent = "Account created! Loading...";
+            messageEl.className = "form-message form-message-success";
+
+            // Auto-login: session is already set by the proxy
+            closeForm();
+            await getUsersAndDevices();
+            runTasks();
+        } else {
+            messageEl.textContent = data.error || "Registration failed.";
+            messageEl.className = "form-message form-message-error";
+        }
+    } catch (err) {
+        messageEl.textContent = "Could not connect to server.";
+        messageEl.className = "form-message form-message-error";
+    }
 }

@@ -24,6 +24,7 @@ app.secret_key = os.getenv("WHIB_FLASK_SECRET_KEY")
 app.permanent_session_lifetime = timedelta(days=30)
 
 DEFAULT_OSRM_URL = os.getenv("WHIB_DEFAULT_OSRM_URL")
+OWNTRACKS_URL = os.getenv("WHIB_OWNTRACKS_URL")
 
 
 @app.route("/")
@@ -63,16 +64,26 @@ def login():
         # Retrieve user inputs from the form
         username = request.form["username"]
         password = request.form["password"]
-        serverurl = request.form["serverurl"]
 
         session.permanent = True  # Make the session permanent
 
         # Store information in the session
         session["username"] = username
         session["password"] = password
-        session["serverurl"] = serverurl
 
         return redirect("/")
+
+
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.get_json()
+    response = requests.post(OWNTRACKS_URL + "/api/register", json=data, timeout=10)
+    if response.status_code == 201:
+        session.permanent = True
+        session["username"] = data.get("username")
+        session["password"] = data.get("password")
+    return jsonify(response.json()), response.status_code
+
 
 @app.route("/save_settings", methods=["POST"])
 def save_settings():
@@ -140,7 +151,7 @@ def get_locations():
 
         # go make the request with login info from cookie
         response = requests.get(
-            session.get("serverurl") + "/api/0/locations",
+            OWNTRACKS_URL + "/api/0/locations",
             auth=HTTPBasicAuth(session.get("username"), session.get("password")),
             params=params,
         )
@@ -161,7 +172,7 @@ def get_users_devices():
 
         # go make the request with login info from cookie
         response = requests.get(
-            session.get("serverurl") + "/api/0/last",
+            OWNTRACKS_URL + "/api/0/last",
             auth=HTTPBasicAuth(session.get("username"), session.get("password")),
         )
         response.raise_for_status()
@@ -227,6 +238,8 @@ if __name__ == "__main__":
         sys.exit("Missing Environment Variable: WHIB_DEFAULT_OSRM_URL")
     if os.getenv("WHIB_FLASK_SECRET_KEY") == None:
         sys.exit("Missing Environment Variable: WHIB_FLASK_SECRET_KEY")
+    if os.getenv("WHIB_OWNTRACKS_URL") == None:
+        sys.exit("Missing Environment Variable: WHIB_OWNTRACKS_URL")
 
     # app.run(host='0.0.0.0', port=5000)
 

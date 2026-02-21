@@ -10,14 +10,26 @@
 <!-- Get OwnTracks server info so we can read data from it -->
 <div id="map-container">
     <div class="form-popup" id="myForm">
-        <h3>Enter OwnTrack Login and URL</h3>
+        <h3>Log In</h3>
         <div class="form-container">
             <form action="/login" method="POST">
-                <input type='text' placeholder='username' name='username' autocomplete="on" />
-                <input type='password' placeholder='password' name='password' autocomplete="on" />
-                <input type='text' placeholder='https://[your domain]' name='serverurl' autocomplete="on" />
-                <input class="btn btn-success" type='submit' value='Login' />
+                <input type='text' placeholder='Username' name='username' autocomplete="on" />
+                <input type='password' placeholder='Password' name='password' autocomplete="on" />
+                <input class="btn btn-success" type='submit' value='Log In' />
             </form>
+            <a href="#" class="form-link" onclick="showRegisterForm(); return false;">Create Account</a>
+        </div>
+    </div>
+
+    <div class="form-popup" id="registerForm" style="display: none;">
+        <h3>Create Account</h3>
+        <div class="form-container">
+            <input type='text' placeholder='Username' id='regUsername' autocomplete="on" />
+            <input type='password' placeholder='Password' id='regPassword' autocomplete="new-password" />
+            <input type='password' placeholder='Confirm Password' id='regPasswordConfirm' autocomplete="new-password" />
+            <p id="registerMessage" class="form-message"></p>
+            <button class="btn btn-success" onclick="submitRegistration()" style="width:100%">Create Account</button>
+            <a href="#" class="form-link" onclick="showLoginForm(); return false;">Back to Log In</a>
         </div>
     </div>
 

@@ -487,6 +487,29 @@ select {
     background-color: var(--color-danger);
 }
 
+.form-message {
+    font-size: var(--font-size-sm);
+    margin: var(--spacing-sm) 0;
+    min-height: 1.2em;
+}
+
+.form-message-error {
+    color: var(--color-danger);
+}
+
+.form-message-success {
+    color: var(--color-success);
+}
+
+.form-link {
+    display: block;
+    text-align: center;
+    margin-top: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-primary);
+    cursor: pointer;
+}
+
 .form-container .btn:hover {
     opacity: 0.9;
 }
