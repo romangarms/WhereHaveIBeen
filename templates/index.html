@@ -9,7 +9,7 @@
 
 <!-- Get OwnTracks server info so we can read data from it -->
 <div id="map-container">
-    <div class="form-popup" id="myForm">
+    <div class="form-popup" id="myForm" style="display: none;">
         <h3>Log In</h3>
         <div class="form-container">
             <form action="/login" method="POST">
@@ -682,6 +682,8 @@
             // if no users, not logged in
             if (usersAndDevices != -1) {
                 runTasks();
+            } else {
+                openForm();
             }
         });
     };
