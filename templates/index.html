@@ -27,9 +27,24 @@
             <input type='text' placeholder='Username' id='regUsername' autocomplete="on" />
             <input type='password' placeholder='Password' id='regPassword' autocomplete="new-password" />
             <input type='password' placeholder='Confirm Password' id='regPasswordConfirm' autocomplete="new-password" />
+            <p class="form-message" style="color: var(--color-text-muted); margin-bottom: 4px;">
+                Password must be at least 12 characters with uppercase, lowercase, and a number.
+            </p>
             <p id="registerMessage" class="form-message"></p>
             <button class="btn btn-success" onclick="submitRegistration()" style="width:100%">Create Account</button>
             <a href="#" class="form-link" onclick="showLoginForm(); return false;">Back to Log In</a>
+        </div>
+    </div>
+
+    <div id="deleteConfirmBackdrop" class="delete-confirm-backdrop" style="display: none;" onclick="hideDeleteConfirm()"></div>
+    <div class="form-popup" id="deleteConfirmForm" style="display: none;">
+        <h3>Delete Account</h3>
+        <div class="form-container">
+            <p class="delete-warning">This will permanently delete your account and all your location data. This action cannot be undone.</p>
+            <input type='password' placeholder='Enter your password to confirm' id='deletePassword' autocomplete="current-password" />
+            <p id="deleteMessage" class="form-message"></p>
+            <button class="btn btn-danger" onclick="submitDeleteAccount()" style="width:100%">Permanently Delete My Account</button>
+            <a href="#" class="form-link" onclick="hideDeleteConfirm(); return false;">Cancel</a>
         </div>
     </div>
 
@@ -96,6 +111,12 @@
                     <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
                 </p>
                 <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
+            </div>
+
+            <div class="subPanel">
+                <h4>Account</h4>
+                <p class="settingInfo">Permanently delete your account and all associated data. This cannot be undone.</p>
+                <input type="button" class="btn btn-danger" value="Delete Account" onclick="showDeleteConfirm()" />
             </div>
 
             <div class="subPanel">
@@ -316,6 +337,62 @@
         const { drivingLatlngs, flyingLatlngs } = await filterData(newData);
         updateProgressBar();
 
+        // If no segment has enough points for route calculation, buffer points directly
+        const hasRoutableSegments =
+            drivingLatlngs.some(seg => seg.length > 1) ||
+            flyingLatlngs.some(seg => seg.length > 1);
+        if (!hasRoutableSegments) {
+            let pointBuffer = null;
+            const circleSize = parseFloat(document.getElementById('circleSize').value) || 0.5;
+
+            for (const feature of newData.features) {
+                if (feature.geometry?.coordinates) {
+                    const [lng, lat] = feature.geometry.coordinates;
+                    const point = turf.point([lng, lat]);
+                    const buffer = turf.buffer(point, circleSize, { units: 'kilometers', steps: 8 });
+                    if (pointBuffer) {
+                        try { pointBuffer = turf.union(pointBuffer, buffer); }
+                        catch (e) { /* skip overlapping point */ }
+                    } else {
+                        pointBuffer = buffer;
+                    }
+                }
+            }
+
+            if (pointBuffer) {
+                // Merge with cached driving buffer
+                let mergedBuffer = cacheData.driving?.buffer
+                    ? mergeBuffers(cacheData.driving.buffer, pointBuffer)
+                    : pointBuffer;
+                eraseLayers();
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                renderCachedBuffer(mergedBuffer, "blue");
+                if (cacheData.flying?.buffer) renderCachedBuffer(cacheData.flying.buffer, "red");
+                getBufferStats(mergedBuffer);
+                getOwntracksStatsIncremental(newData);
+
+                const latestTimestamp = getLatestTimestamp(newData);
+                const newCacheData = {
+                    driving: { buffer: mergedBuffer, timestamp: latestTimestamp || cacheData.driving?.timestamp, startTimestamp: cacheData.driving?.startTimestamp },
+                    flying: cacheData.flying || { buffer: null, timestamp: latestTimestamp, startTimestamp: cacheData.driving?.startTimestamp },
+                    settings: currentSettings,
+                    metrics: { highestAltitude, highestVelocity, totalDistance: distanceKm }
+                };
+                try { await setCache(user, device, newCacheData); } catch (e) { console.error("Cache update error:", e); }
+                updateCacheStatusUI(newCacheData, user, device);
+            } else {
+                // No valid new points, just keep showing cache
+                getOwntracksStatsIncremental(newData);
+            }
+
+            setProgressBarNumSteps(getNumTasksDone());
+            setProgressMessage("Complete");
+            updateProgressBar();
+            return;
+        }
+
         // Get stats for new data (incremental - adds to cached metrics)
         getOwntracksStatsIncremental(newData);
 
@@ -425,6 +502,56 @@
             setProgressMessage("Processing data...");
             const { drivingLatlngs, flyingLatlngs } = await filterData(data)
             updateProgressBar();
+
+            // If no segment has enough points for route calculation, buffer points directly
+            const hasRoutableSegments =
+                drivingLatlngs.some(seg => seg.length > 1) ||
+                flyingLatlngs.some(seg => seg.length > 1);
+            if (!hasRoutableSegments) {
+                setProgressMessage("Showing location points...");
+                let pointBuffer = null;
+                const circleSize = parseFloat(document.getElementById('circleSize').value) || 0.5;
+
+                for (const feature of data.features) {
+                    if (feature.geometry?.coordinates) {
+                        const [lng, lat] = feature.geometry.coordinates;
+                        const point = turf.point([lng, lat]);
+                        const buffer = turf.buffer(point, circleSize, { units: 'kilometers', steps: 8 });
+                        if (pointBuffer) {
+                            try { pointBuffer = turf.union(pointBuffer, buffer); }
+                            catch (e) { /* skip overlapping point */ }
+                        } else {
+                            pointBuffer = buffer;
+                        }
+                    }
+                }
+
+                if (pointBuffer) {
+                    renderCachedBuffer(pointBuffer, "blue");
+                    getBufferStats(pointBuffer);
+                    getOwntracksStats(data);
+
+                    if (isAllTimeQuery()) {
+                        const latestTimestamp = getLatestTimestamp(data);
+                        const earliestTimestamp = getEarliestTimestamp(data);
+                        const cacheData = {
+                            driving: { buffer: pointBuffer, timestamp: latestTimestamp, startTimestamp: earliestTimestamp },
+                            flying: { buffer: null, timestamp: latestTimestamp, startTimestamp: earliestTimestamp },
+                            settings: currentSettings,
+                            metrics: { highestAltitude, highestVelocity, totalDistance: distanceKm }
+                        };
+                        try {
+                            await setCache(user, device, cacheData);
+                        } catch (e) { console.error("Cache save error:", e); }
+                        updateCacheStatusUI(cacheData, user, device);
+                    }
+                }
+
+                setProgressBarNumSteps(getNumTasksDone());
+                setProgressMessage("Complete");
+                updateProgressBar();
+                return;
+            }
 
             // get owntracks stats
             getOwntracksStats(data);
@@ -693,9 +820,14 @@
         backdrop.classList.remove('open');
     }
 
-    // Close settings panel on Escape key
+    // Close panels on Escape key
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
+            const deleteForm = document.getElementById('deleteConfirmForm');
+            if (deleteForm && deleteForm.style.display !== 'none') {
+                hideDeleteConfirm();
+                return;
+            }
             const panel = document.getElementById('settingsPanel');
             if (panel && panel.classList.contains('open')) {
                 closeSettingsPanel();

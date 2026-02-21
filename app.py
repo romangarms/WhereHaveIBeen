@@ -85,6 +85,19 @@ def register():
     return jsonify(response.json()), response.status_code
 
 
+@app.route("/delete-account", methods=["POST"])
+def delete_account():
+    data = request.get_json()
+    payload = {
+        "username": session.get("username"),
+        "password": data.get("password")
+    }
+    response = requests.post(OWNTRACKS_URL + "/api/delete-account", json=payload, timeout=10)
+    if response.status_code == 200:
+        session.clear()
+    return jsonify(response.json()), response.status_code
+
+
 @app.route("/save_settings", methods=["POST"])
 def save_settings():
     data = request.json
@@ -117,19 +130,15 @@ def get_settings():
 @app.route("/locations")
 def get_locations():
     try:
-        # these were reasonable defaults, probably don't need them
         params = {
             "from": "2015-01-01T01:00:00.0002Z",
             "to": "2099-12-31T23:59:59.000Z",
             "format": "geojson",
-            "user": "user",
-            "device": "userdevice",
         }
 
         # get filters from query
         start_date = request.args.get("startdate")
         end_date = request.args.get("enddate")
-        user = request.args.get("user")
         device = request.args.get("device")
 
         # Convert from local time to UTC
@@ -143,8 +152,7 @@ def get_locations():
             utc_dt = local_dt.astimezone(pytz.UTC)
             params["to"] = utc_dt.isoformat(timespec='milliseconds').replace("+00:00", "Z")
 
-        if user:
-            params["user"] = user
+        params["user"] = session.get("username", "").lower()
 
         if device:
             params["device"] = device
@@ -177,8 +185,13 @@ def get_users_devices():
         )
         response.raise_for_status()
         data = response.json()
-        # print(data)  # Print data to console
-        return jsonify(data)
+        # Filter to only the logged-in user's data
+        username = session.get("username")
+        app.logger.info(f"UsersDevices: OwnTracks returned {len(data)} entries, filtering for user '{username}'")
+        app.logger.debug(f"UsersDevices: Usernames in response: {[e.get('username') for e in data]}")
+        filtered = [entry for entry in data if entry.get("username", "").lower() == username.lower()]
+        app.logger.info(f"UsersDevices: {len(filtered)} entries after filtering")
+        return jsonify(filtered)
     except requests.HTTPError as http_err:
         app.logger.error(f"UsersAndDevices: HTTP error occurred: {http_err}")
         return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500

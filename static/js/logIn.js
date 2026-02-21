@@ -131,6 +131,60 @@ function showLoginForm() {
 }
 
 /**
+ * Show delete account confirmation modal
+ */
+function showDeleteConfirm() {
+    closeSettingsPanel();
+    document.getElementById("deleteConfirmBackdrop").style.display = "block";
+    document.getElementById("deleteConfirmForm").style.display = "block";
+    document.getElementById("deletePassword").value = "";
+    document.getElementById("deleteMessage").textContent = "";
+    document.getElementById("deleteMessage").className = "form-message";
+}
+
+/**
+ * Hide delete account confirmation modal
+ */
+function hideDeleteConfirm() {
+    document.getElementById("deleteConfirmBackdrop").style.display = "none";
+    document.getElementById("deleteConfirmForm").style.display = "none";
+}
+
+/**
+ * Submit delete account request
+ */
+async function submitDeleteAccount() {
+    const password = document.getElementById("deletePassword").value;
+    const messageEl = document.getElementById("deleteMessage");
+
+    if (!password) {
+        messageEl.textContent = "Password is required.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    try {
+        const response = await fetch("/delete-account", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 200) {
+            window.location.href = "/";
+        } else {
+            messageEl.textContent = data.error || "Failed to delete account.";
+            messageEl.className = "form-message form-message-error";
+        }
+    } catch (err) {
+        messageEl.textContent = "Could not connect to server.";
+        messageEl.className = "form-message form-message-error";
+    }
+}
+
+/**
  * Submit registration form
  */
 async function submitRegistration() {

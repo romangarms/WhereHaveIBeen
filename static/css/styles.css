@@ -515,6 +515,25 @@ select {
 }
 
 /* ===========================
+   Delete Confirmation Modal
+   =========================== */
+.delete-confirm-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+}
+
+.delete-warning {
+    font-size: var(--font-size-sm);
+    color: var(--color-danger);
+    margin-bottom: var(--spacing-md);
+}
+
+/* ===========================
    Info Icon & Tooltip
    =========================== */
 .info-icon {
