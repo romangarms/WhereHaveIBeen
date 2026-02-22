@@ -60,4 +60,4 @@ Currently I host an OSRM server with the data from Washington, Oregon, and Calif
 
 Check out the "about" and "setup" pages of WhereHaveIBeen at:
 [About WhereHaveIBeen](https://tracker.romangarms.com/about)
-[Setup WhereHaveIBeen](https://tracker.romangarms.com/setup)
+[How to Use WhereHaveIBeen](https://tracker.romangarms.com/how-to-use)
