@@ -12,6 +12,7 @@ from requests.auth import HTTPBasicAuth
 from datetime import timedelta, datetime
 import os
 import pytz
+import re
 from dotenv import load_dotenv
 
 INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
@@ -24,6 +25,7 @@ app.secret_key = os.getenv("WHIB_FLASK_SECRET_KEY")
 app.permanent_session_lifetime = timedelta(days=30)
 
 DEFAULT_OSRM_URL = os.getenv("WHIB_DEFAULT_OSRM_URL")
+OWNTRACKS_URL = os.getenv("WHIB_OWNTRACKS_URL")
 
 
 @app.route("/")
@@ -60,19 +62,98 @@ def sign_out():
 @app.route("/login", methods=["POST", "GET"])
 def login():
     if request.method == "POST":
-        # Retrieve user inputs from the form
         username = request.form["username"]
         password = request.form["password"]
-        serverurl = request.form["serverurl"]
 
-        session.permanent = True  # Make the session permanent
+        # Validate credentials against OwnTracks before storing in session
+        try:
+            validation = requests.get(
+                OWNTRACKS_URL + "/api/0/last",
+                auth=HTTPBasicAuth(username, password),
+                timeout=10,
+            )
+            if validation.status_code != 200:
+                app.logger.info(f"Login: OwnTracks returned {validation.status_code} for user '{username}'")
+                return render_template("index.html", login_error="Invalid username or password."), 401
+        except requests.RequestException as err:
+            app.logger.error(f"Login: Error validating with OwnTracks: {err}")
+            return render_template("index.html", login_error="Could not connect to server."), 500
 
-        # Store information in the session
+        session.permanent = True
         session["username"] = username
         session["password"] = password
-        session["serverurl"] = serverurl
 
         return redirect("/")
+
+
+@app.route("/register", methods=["POST"])
+def register():
+    try:
+        data = request.get_json()
+        username = data.get("username", "").strip() if data else ""
+        password = data.get("password", "") if data else ""
+
+        if not username or not re.match(r'^[a-zA-Z0-9_-]{1,50}$', username):
+            return jsonify({"error": "Username must be 1-50 characters (letters, numbers, hyphens, underscores)."}), 400
+
+        if len(password) < 12:
+            return jsonify({"error": "Password must be at least 12 characters."}), 400
+        if not re.search(r'[A-Z]', password):
+            return jsonify({"error": "Password must contain an uppercase letter."}), 400
+        if not re.search(r'[a-z]', password):
+            return jsonify({"error": "Password must contain a lowercase letter."}), 400
+        if not re.search(r'[0-9]', password):
+            return jsonify({"error": "Password must contain a number."}), 400
+
+        payload = {"username": username, "password": password}
+        response = requests.post(OWNTRACKS_URL + "/api/register", json=payload, timeout=10)
+
+        if response.status_code == 201:
+            session.permanent = True
+            session["username"] = username
+            session["password"] = password
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException as err:
+        app.logger.error(f"Register: Error communicating with OwnTracks: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+    except Exception as err:
+        app.logger.error(f"Register: Unexpected error: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+
+
+@app.route("/delete-account", methods=["POST"])
+def delete_account():
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "Not logged in."}), 401
+
+    try:
+        data = request.get_json()
+        password = data.get("password", "") if data else ""
+
+        if not password:
+            return jsonify({"error": "Password is required."}), 400
+
+        payload = {
+            "username": username,
+            "password": password,
+        }
+        response = requests.post(OWNTRACKS_URL + "/api/delete-account", json=payload, timeout=10)
+
+        if response.status_code == 200:
+            session.clear()
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException as err:
+        app.logger.error(f"DeleteAccount: Error communicating with OwnTracks: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+    except Exception as err:
+        app.logger.error(f"DeleteAccount: Unexpected error: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+
 
 @app.route("/save_settings", methods=["POST"])
 def save_settings():
@@ -106,19 +187,15 @@ def get_settings():
 @app.route("/locations")
 def get_locations():
     try:
-        # these were reasonable defaults, probably don't need them
         params = {
             "from": "2015-01-01T01:00:00.0002Z",
             "to": "2099-12-31T23:59:59.000Z",
             "format": "geojson",
-            "user": "user",
-            "device": "userdevice",
         }
 
         # get filters from query
         start_date = request.args.get("startdate")
         end_date = request.args.get("enddate")
-        user = request.args.get("user")
         device = request.args.get("device")
 
         # Convert from local time to UTC
@@ -132,15 +209,14 @@ def get_locations():
             utc_dt = local_dt.astimezone(pytz.UTC)
             params["to"] = utc_dt.isoformat(timespec='milliseconds').replace("+00:00", "Z")
 
-        if user:
-            params["user"] = user
+        params["user"] = session.get("username", "").lower()
 
         if device:
             params["device"] = device
 
         # go make the request with login info from cookie
         response = requests.get(
-            session.get("serverurl") + "/api/0/locations",
+            OWNTRACKS_URL + "/api/0/locations",
             auth=HTTPBasicAuth(session.get("username"), session.get("password")),
             params=params,
         )
@@ -161,13 +237,18 @@ def get_users_devices():
 
         # go make the request with login info from cookie
         response = requests.get(
-            session.get("serverurl") + "/api/0/last",
+            OWNTRACKS_URL + "/api/0/last",
             auth=HTTPBasicAuth(session.get("username"), session.get("password")),
         )
         response.raise_for_status()
         data = response.json()
-        # print(data)  # Print data to console
-        return jsonify(data)
+        # Filter to only the logged-in user's data
+        username = session.get("username")
+        app.logger.info(f"UsersDevices: OwnTracks returned {len(data)} entries, filtering for user '{username}'")
+        app.logger.debug(f"UsersDevices: Usernames in response: {[e.get('username') for e in data]}")
+        filtered = [entry for entry in data if entry.get("username", "").lower() == username.lower()]
+        app.logger.info(f"UsersDevices: {len(filtered)} entries after filtering")
+        return jsonify(filtered)
     except requests.HTTPError as http_err:
         app.logger.error(f"UsersAndDevices: HTTP error occurred: {http_err}")
         return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
@@ -227,6 +308,8 @@ if __name__ == "__main__":
         sys.exit("Missing Environment Variable: WHIB_DEFAULT_OSRM_URL")
     if os.getenv("WHIB_FLASK_SECRET_KEY") == None:
         sys.exit("Missing Environment Variable: WHIB_FLASK_SECRET_KEY")
+    if os.getenv("WHIB_OWNTRACKS_URL") == None:
+        sys.exit("Missing Environment Variable: WHIB_OWNTRACKS_URL")
 
     # app.run(host='0.0.0.0', port=5000)
 

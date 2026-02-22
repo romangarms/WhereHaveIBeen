@@ -9,15 +9,88 @@
 
 <!-- Get OwnTracks server info so we can read data from it -->
 <div id="map-container">
-    <div class="form-popup" id="myForm">
-        <h3>Enter OwnTrack Login and URL</h3>
+    <div class="form-popup" id="myForm" style="display: {% if login_error %}block{% else %}none{% endif %};">
+        <h3>Log In</h3>
         <div class="form-container">
             <form action="/login" method="POST">
-                <input type='text' placeholder='username' name='username' autocomplete="on" />
-                <input type='password' placeholder='password' name='password' autocomplete="on" />
-                <input type='text' placeholder='https://[your domain]' name='serverurl' autocomplete="on" />
-                <input class="btn btn-success" type='submit' value='Login' />
+                <input type='text' placeholder='Username' name='username' autocomplete="on" />
+                <div class="password-input-wrapper">
+                    <input type='password' placeholder='Password' name='password' autocomplete="on" />
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                        <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    </button>
+                </div>
+                {% if login_error %}
+                <p class="form-message form-message-error">{{ login_error }}</p>
+                {% endif %}
+                <input class="btn btn-success" type='submit' value='Log In' />
             </form>
+            <a href="#" class="form-link" onclick="showRegisterForm(); return false;">Create Account</a>
+        </div>
+    </div>
+
+    <div class="form-popup" id="registerForm" style="display: none;">
+        <h3>Create Account</h3>
+        <div class="form-container">
+            <input type='text' placeholder='Username' id='regUsername' autocomplete="on" />
+            <div class="password-input-wrapper">
+                <input type='password' placeholder='Password' id='regPassword' autocomplete="new-password" />
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                </button>
+            </div>
+            <div class="password-input-wrapper">
+                <input type='password' placeholder='Confirm Password' id='regPasswordConfirm' autocomplete="new-password" />
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                </button>
+            </div>
+            <p class="form-message" style="color: var(--color-text-muted); margin-bottom: 4px;">
+                Password must be at least 12 characters with uppercase, lowercase, and a number.
+            </p>
+            <p id="registerMessage" class="form-message"></p>
+            <button class="btn btn-success" onclick="submitRegistration()" style="width:100%">Create Account</button>
+            <a href="#" class="form-link" onclick="showLoginForm(); return false;">Back to Log In</a>
+        </div>
+    </div>
+
+    <div id="deleteConfirmBackdrop" class="delete-confirm-backdrop" style="display: none;" onclick="hideDeleteConfirm()"></div>
+    <div class="form-popup" id="deleteConfirmForm" style="display: none;">
+        <h3>Delete Account</h3>
+        <div class="form-container">
+            <p class="delete-warning">This will permanently delete your account and all your location data. This action cannot be undone.</p>
+            <div class="password-input-wrapper">
+                <input type='password' placeholder='Enter your password to confirm' id='deletePassword' autocomplete="current-password" />
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                </button>
+            </div>
+            <p id="deleteMessage" class="form-message"></p>
+            <button class="btn btn-danger" onclick="submitDeleteAccount()" style="width:100%">Permanently Delete My Account</button>
+            <a href="#" class="form-link" onclick="hideDeleteConfirm(); return false;">Cancel</a>
+        </div>
+    </div>
+
+    <!-- Setup Guide Modal -->
+    <div id="setupGuideBackdrop" class="delete-confirm-backdrop" style="display: none;" onclick="hideSetupGuide()"></div>
+    <div class="form-popup" id="setupGuideModal" style="display: none;">
+        <h3>Set Up OwnTracks</h3>
+        <div class="form-container setup-guide-container">
+            <div class="setup-guide-content">
+                <p class="setup-step"><strong>1.</strong> Download <a href="https://apps.apple.com/app/owntracks/id692424691" target="_blank">OwnTracks for iOS</a> or <a href="https://play.google.com/store/apps/details?id=org.owntracks.android" target="_blank">OwnTracks for Android</a></p>
+                <p class="setup-step"><strong>2.</strong> Open the app and tap the <strong>(i)</strong> button in the top left</p>
+                <p class="setup-step"><strong>3.</strong> Tap <strong>Settings</strong></p>
+                <p class="setup-step"><strong>4.</strong> Change the mode from MQTT to <strong>HTTP</strong></p>
+                <p class="setup-step"><strong>5.</strong> Set <strong>UserID</strong> to your username</p>
+                <p class="setup-step"><strong>6.</strong> Set <strong>Password</strong> to your password</p>
+                <p class="setup-step"><strong>7.</strong> Set <strong>DeviceID</strong> to something memorable (e.g., "phone")</p>
+                <p class="setup-step"><strong>8.</strong> Set the <strong>URL</strong> to:<br><code>https://mini.romangarms.com/pub</code></p>
+            </div>
+            <button class="btn btn-success" onclick="hideSetupGuide()" style="width:100%">Got it!</button>
         </div>
     </div>
 
@@ -41,55 +114,66 @@
             <h1>Settings</h1>
             <button id="settingsPanelClose" onclick="closeSettingsPanel()">&times;</button>
         </div>
-        <div class="settingsPanelContent">
-            <div class="subPanel">
-                <h4>Map Settings</h4>
-                <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
-                    map.</p>
-                <h5>Hide Route <span class="info-icon">i
-                        <span class="tooltip-text">The route is only drawn when less than 500 GPS
-                            points are used. Adjust the date filters to see this!</span>
-                    </span></h5>
-                <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
+        <div class="settingsPanelBody">
+            <nav class="settingsPanelNav">
+                <button class="btn btn-primary settings-nav-apply" id="applySettingsButton" onclick="resetMap(map)">Apply</button>
+                <button class="settings-nav-btn active" onclick="scrollToSetting('settingsMap')">Map</button>
+                <button class="settings-nav-btn" onclick="scrollToSetting('settingsCache')">Cache</button>
+                <button class="settings-nav-btn" onclick="scrollToSetting('settingsRouting')">Routing</button>
+                <button class="settings-nav-btn" onclick="scrollToSetting('settingsAccount')">Account</button>
+            </nav>
+            <div class="settingsPanelContent">
+                <div class="subPanel" id="settingsMap">
+                    <h4>Map Settings</h4>
+                    <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
+                        map.</p>
+                    <h5>Hide Route <span class="info-icon">i
+                            <span class="tooltip-text">The route is only drawn when less than 500 GPS
+                                points are used. Adjust the date filters to see this!</span>
+                        </span></h5>
+                    <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
 
-                <h5>Buffer Size <span class="info-icon">i
-                        <span class="tooltip-text">Change how large of a buffer is drawn around your route in
-                            kilometers.
-                            Note that larger values take longer to draw. Changing this will invalidate your cache.</span>
-                    </span></h5>
+                    <h5>Buffer Size <span class="info-icon">i
+                            <span class="tooltip-text">Change how large of a buffer is drawn around your route in
+                                kilometers.
+                                Note that larger values take longer to draw. Changing this will invalidate your cache.</span>
+                        </span></h5>
 
-                <p class="settingInfo">Default: 0.5km</p>
-                <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
-                    min="0.1" max="10" />
-            </div>
+                    <p class="settingInfo">Default: 0.5km</p>
+                    <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
+                        min="0.1" max="10" />
+                </div>
 
-            <div class="subPanel">
-                <h4>Routing Settings</h4>
-                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
-                    public OSRM one.</p>
-                <h5>Custom OSRM Router <span class="info-icon">i
-                        <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
-                    </span></h5>
+                <div class="subPanel" id="settingsCache" style="display: none;">
+                    <h4>Cache <span class="info-icon">i
+                            <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
+                        </span></h4>
+                    <p class="settingInfo">
+                        <strong>Cached:</strong> <span id="cacheDateRange">No cached data</span><br>
+                        <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
+                    </p>
+                    <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
+                </div>
 
-                <p class="settingInfo">Default: leave blank</p>
-                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
-            </div>
+                <div class="subPanel" id="settingsRouting">
+                    <h4>Routing Settings</h4>
+                    <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
+                        public OSRM one.</p>
+                    <h5>Custom OSRM Router <span class="info-icon">i
+                            <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
+                        </span></h5>
 
-            <div class="subPanel" id="cacheStatus" style="display: none;">
-                <h4>Cache <span class="info-icon">i
-                        <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
-                    </span></h4>
-                <p class="settingInfo">
-                    <strong>Cached:</strong> <span id="cacheDateRange">No cached data</span><br>
-                    <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
-                </p>
-                <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
-            </div>
+                    <p class="settingInfo">Default: leave blank</p>
+                    <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
+                </div>
 
-            <div class="subPanel">
-                <h4>Save and Apply Settings</h4>
-                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
-                    onclick="resetMap(map)" />
+                <div class="subPanel" id="settingsAccount">
+                    <h4>Account</h4>
+                    <p class="settingInfo">Need help connecting OwnTracks to your account?</p>
+                    <input type="button" class="btn btn-primary" value="OwnTracks Setup Guide" onclick="showSetupGuideFromSettings()" />
+                    <p class="settingInfo" style="margin-top: var(--spacing-md);">Permanently delete your account and all associated data. This cannot be undone.</p>
+                    <input type="button" class="btn btn-danger" value="Delete Account" onclick="showDeleteConfirm()" />
+                </div>
             </div>
         </div>
     </div>
@@ -172,7 +256,7 @@
     }
 
     async function runTasks() {
-        const user = document.getElementById('userBox').value;
+        const user = getCurrentUsername();
         const device = document.getElementById('deviceBox').value;
 
         // Initialize IndexedDB
@@ -304,6 +388,62 @@
         const { drivingLatlngs, flyingLatlngs } = await filterData(newData);
         updateProgressBar();
 
+        // If no segment has enough points for route calculation, buffer points directly
+        const hasRoutableSegments =
+            drivingLatlngs.some(seg => seg.length > 1) ||
+            flyingLatlngs.some(seg => seg.length > 1);
+        if (!hasRoutableSegments) {
+            let pointBuffer = null;
+            const circleSize = parseFloat(document.getElementById('circleSize').value) || 0.5;
+
+            for (const feature of newData.features) {
+                if (feature.geometry?.coordinates) {
+                    const [lng, lat] = feature.geometry.coordinates;
+                    const point = turf.point([lng, lat]);
+                    const buffer = turf.buffer(point, circleSize, { units: 'kilometers', steps: 8 });
+                    if (pointBuffer) {
+                        try { pointBuffer = turf.union(pointBuffer, buffer); }
+                        catch (e) { /* skip overlapping point */ }
+                    } else {
+                        pointBuffer = buffer;
+                    }
+                }
+            }
+
+            if (pointBuffer) {
+                // Merge with cached driving buffer
+                let mergedBuffer = cacheData.driving?.buffer
+                    ? mergeBuffers(cacheData.driving.buffer, pointBuffer)
+                    : pointBuffer;
+                eraseLayers();
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                renderCachedBuffer(mergedBuffer, "blue");
+                if (cacheData.flying?.buffer) renderCachedBuffer(cacheData.flying.buffer, "red");
+                getBufferStats(mergedBuffer);
+                getOwntracksStatsIncremental(newData);
+
+                const latestTimestamp = getLatestTimestamp(newData);
+                const newCacheData = {
+                    driving: { buffer: mergedBuffer, timestamp: latestTimestamp || cacheData.driving?.timestamp, startTimestamp: cacheData.driving?.startTimestamp },
+                    flying: cacheData.flying || { buffer: null, timestamp: latestTimestamp, startTimestamp: cacheData.driving?.startTimestamp },
+                    settings: currentSettings,
+                    metrics: { highestAltitude, highestVelocity, totalDistance: distanceKm }
+                };
+                try { await setCache(user, device, newCacheData); } catch (e) { console.error("Cache update error:", e); }
+                updateCacheStatusUI(newCacheData, user, device);
+            } else {
+                // No valid new points, just keep showing cache
+                getOwntracksStatsIncremental(newData);
+            }
+
+            setProgressBarNumSteps(getNumTasksDone());
+            setProgressMessage("Complete");
+            updateProgressBar();
+            return;
+        }
+
         // Get stats for new data (incremental - adds to cached metrics)
         getOwntracksStatsIncremental(newData);
 
@@ -414,6 +554,56 @@
             const { drivingLatlngs, flyingLatlngs } = await filterData(data)
             updateProgressBar();
 
+            // If no segment has enough points for route calculation, buffer points directly
+            const hasRoutableSegments =
+                drivingLatlngs.some(seg => seg.length > 1) ||
+                flyingLatlngs.some(seg => seg.length > 1);
+            if (!hasRoutableSegments) {
+                setProgressMessage("Showing location points...");
+                let pointBuffer = null;
+                const circleSize = parseFloat(document.getElementById('circleSize').value) || 0.5;
+
+                for (const feature of data.features) {
+                    if (feature.geometry?.coordinates) {
+                        const [lng, lat] = feature.geometry.coordinates;
+                        const point = turf.point([lng, lat]);
+                        const buffer = turf.buffer(point, circleSize, { units: 'kilometers', steps: 8 });
+                        if (pointBuffer) {
+                            try { pointBuffer = turf.union(pointBuffer, buffer); }
+                            catch (e) { /* skip overlapping point */ }
+                        } else {
+                            pointBuffer = buffer;
+                        }
+                    }
+                }
+
+                if (pointBuffer) {
+                    renderCachedBuffer(pointBuffer, "blue");
+                    getBufferStats(pointBuffer);
+                    getOwntracksStats(data);
+
+                    if (isAllTimeQuery()) {
+                        const latestTimestamp = getLatestTimestamp(data);
+                        const earliestTimestamp = getEarliestTimestamp(data);
+                        const cacheData = {
+                            driving: { buffer: pointBuffer, timestamp: latestTimestamp, startTimestamp: earliestTimestamp },
+                            flying: { buffer: null, timestamp: latestTimestamp, startTimestamp: earliestTimestamp },
+                            settings: currentSettings,
+                            metrics: { highestAltitude, highestVelocity, totalDistance: distanceKm }
+                        };
+                        try {
+                            await setCache(user, device, cacheData);
+                        } catch (e) { console.error("Cache save error:", e); }
+                        updateCacheStatusUI(cacheData, user, device);
+                    }
+                }
+
+                setProgressBarNumSteps(getNumTasksDone());
+                setProgressMessage("Complete");
+                updateProgressBar();
+                return;
+            }
+
             // get owntracks stats
             getOwntracksStats(data);
 
@@ -490,7 +680,7 @@
      * Update the cache status display in the UI
      */
     async function updateCacheStatusUI(cacheData, user, device) {
-        const cacheStatusEl = document.getElementById('cacheStatus');
+        const cacheStatusEl = document.getElementById('settingsCache');
         if (!cacheStatusEl) return;
 
         try {
@@ -515,7 +705,7 @@
      * Clear cache for current user/device
      */
     async function clearCurrentCache() {
-        const user = document.getElementById('userBox').value;
+        const user = getCurrentUsername();
         const device = document.getElementById('deviceBox').value;
 
         if (confirm('Clear cached data for ' + user + '/' + device + '? This will recalculate all routes on next load.')) {
@@ -543,6 +733,8 @@
             // if no users, not logged in
             if (usersAndDevices != -1) {
                 runTasks();
+            } else {
+                openForm();
             }
         });
     };
@@ -561,19 +753,15 @@
                 <h1> Filters </h1>
                 <p class="settingInfo">Is your data showing incorrectly on the map? Try adjusting these settings. Make
                     sure
-                    the user and device are correct, and try changing time frame.</p>
+                    the device is correct, and try changing time frame.</p>
 
             </div>
 
             <div class="subPanel">
-                <h4>Choose a user and device</h4>
-                <p class="settingInfo">Choose which device to track. This is your OwnTracks user and device.</p>
+                <h4>Choose a device</h4>
+                <p class="settingInfo">Choose which device to track.</p>
 
-
-                <select class="form-select" id="userBox">
-                    <option value="" selected disabled>Choose a user</option>
-                </select>
-                <select class="form-select" id="deviceBox">
+                <select class="form-select" id="deviceBox" onchange="resetMap()">
                     <option value="" selected disabled>Choose a device</option>
                 </select>
             </div>
@@ -583,33 +771,29 @@
                 <h4>Time frame</h4>
                 <p class="settingInfo">Filter the map to only shows GPS data between these two dates. Time is in UTC.
                 </p>
-                <div class="dateFilters" style="float:left; width: 50%;">
-                    <h5>Start Date </h5>
-
-                    <input type="datetime-local" class="input-group date" id="startBox" onkeyup="" name="trip-start"
-                        value="2015-01-01T00:00" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                <div class="date-row">
+                    <div class="date-col">
+                        <h5>Start Date</h5>
+                        <input type="datetime-local" class="input-group date" id="startBox" name="trip-start"
+                            value="2015-01-01T00:00" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                    </div>
+                    <div class="date-col">
+                        <h5>End Date</h5>
+                        <input type="datetime-local" class="input-group date" id="endBox" name="trip-start"
+                            value="2099-12-31T23:59" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                    </div>
+                    <div class="date-col date-col-apply">
+                        <button type="button" class="btn btn-outline-primary apply-filters-btn" onclick="setCustomTimeFilter(); resetMap(map)">Apply</button>
+                    </div>
                 </div>
-                <div class="dateFilters" style="float:left; width: 50%;">
-                    <h5>End Date </h5>
-                    <input type="datetime-local" class="input-group date" id="endBox" onkeyup="" name="trip-start"
-                        value="2099-12-31T23:59" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+
+                <div class="time-presets">
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('month')">Last Month</button>
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('week')">Last Week</button>
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('48hrs')">48 Hours</button>
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('24hrs')">24 Hours</button>
+                    <button type="button" class="btn btn-success time-period-btn" onclick="loadAllTimeData()">All Time</button>
                 </div>
-
-                <input type="button" class="btn btn-primary time-period-btn" value="Last Month"
-                    onclick="changeDateRange('month')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Last Week"
-                    onclick="changeDateRange('week')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Last 48 Hours"
-                    onclick="changeDateRange('48hrs')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Last 24 Hours"
-                    onclick="changeDateRange('24hrs')" />
-                <input type="button" class="btn btn-success time-period-btn" value="All Time"
-                    onclick="loadAllTimeData()" />
-
-            </div>
-            <div class="subPanel">
-                <h4>Apply Filters</h4>
-                <input type="button" class="btn btn-primary" value="Apply" onclick="setCustomTimeFilter(); resetMap(map)" />
             </div>
         </div>
     </div>
@@ -681,9 +865,63 @@
         backdrop.classList.remove('open');
     }
 
-    // Close settings panel on Escape key
+    // Settings nav: scroll to section and update active button
+    function scrollToSetting(id) {
+        const target = document.getElementById(id);
+        const content = document.querySelector('.settingsPanelContent');
+        if (target && content) {
+            content.scrollTo({
+                top: target.offsetTop - content.offsetTop,
+                behavior: 'smooth'
+            });
+            updateActiveNavBtn(id);
+        }
+    }
+
+    function updateActiveNavBtn(activeId) {
+        document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('onclick').includes(activeId)) {
+                btn.classList.add('active');
+            }
+        });
+    }
+
+    // Update active nav button on scroll
+    (function() {
+        const content = document.querySelector('.settingsPanelContent');
+        if (!content) return;
+
+        const sectionIds = ['settingsMap', 'settingsCache', 'settingsRouting', 'settingsAccount'];
+
+        content.addEventListener('scroll', function() {
+            const scrollTop = content.scrollTop;
+            let activeId = sectionIds[0];
+
+            for (const id of sectionIds) {
+                const el = document.getElementById(id);
+                if (el && el.offsetTop - content.offsetTop <= scrollTop + 10) {
+                    activeId = id;
+                }
+            }
+
+            updateActiveNavBtn(activeId);
+        });
+    })();
+
+    // Close panels on Escape key
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
+            const setupGuide = document.getElementById('setupGuideModal');
+            if (setupGuide && setupGuide.style.display !== 'none') {
+                hideSetupGuide();
+                return;
+            }
+            const deleteForm = document.getElementById('deleteConfirmForm');
+            if (deleteForm && deleteForm.style.display !== 'none') {
+                hideDeleteConfirm();
+                return;
+            }
             const panel = document.getElementById('settingsPanel');
             if (panel && panel.classList.contains('open')) {
                 closeSettingsPanel();

@@ -59,7 +59,6 @@ async function fetchLocations(options = {}) {
         const queryParams = new URLSearchParams({
             startdate: startDate,
             enddate: endDate,
-            user: document.getElementById('userBox').value,
             device: document.getElementById('deviceBox').value
         }).toString();
 

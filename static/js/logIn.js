@@ -1,4 +1,30 @@
 let loggedIn = false;
+let currentUsername = '';
+
+/**
+ * Toggle password visibility for a password input field
+ */
+function togglePasswordVisibility(button) {
+    const input = button.parentElement.querySelector('input');
+    const eyeIcon = button.querySelector('.eye-icon');
+    const eyeOffIcon = button.querySelector('.eye-off-icon');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        eyeIcon.style.display = 'none';
+        eyeOffIcon.style.display = 'block';
+        button.setAttribute('aria-label', 'Hide password');
+    } else {
+        input.type = 'password';
+        eyeIcon.style.display = 'block';
+        eyeOffIcon.style.display = 'none';
+        button.setAttribute('aria-label', 'Show password');
+    }
+}
+
+function getCurrentUsername() {
+    return currentUsername;
+}
 
 function checkIfLoggedIn() {
     if (loggedIn) {
@@ -24,28 +50,16 @@ async function getUsersAndDevices() {
 
         const data = await response.json(); // Parse the JSON from the response
 
-        // Iterate through the data and populate the sets
-        let select = document.getElementById("userBox");
+        // Populate device dropdown and store username for cache key
+        let select = document.getElementById("deviceBox");
         select.innerHTML = '';
-
-        select = document.getElementById("deviceBox");
-        select.innerHTML = '';
-
-        let el;
 
         data.forEach(entry => {
             if (entry.username) {
-                select = document.getElementById("userBox");
-
-                el = document.createElement("option");
-                el.textContent = entry.username;
-                el.value = entry.username;
-                select.appendChild(el);
+                currentUsername = entry.username;
             }
             if (entry.device) {
-                select = document.getElementById("deviceBox");
-
-                el = document.createElement("option");
+                const el = document.createElement("option");
                 el.textContent = entry.device;
                 el.value = entry.device;
                 select.appendChild(el);
@@ -99,7 +113,8 @@ async function getUserSettings() {
  */
 function openForm() {
     document.getElementById("myForm").style.display = "block";
-    document.getElementById("sign_out").style.display = "none"
+    document.getElementById("registerForm").style.display = "none";
+    document.getElementById("sign_out").style.display = "none";
 }
 
 /**
@@ -107,5 +122,179 @@ function openForm() {
  */
 function closeForm() {
     document.getElementById("myForm").style.display = "none";
+    document.getElementById("registerForm").style.display = "none";
     document.getElementById("sign_out").style.display = "block";
+}
+
+/**
+ * Switch to the registration form
+ */
+function showRegisterForm() {
+    document.getElementById("myForm").style.display = "none";
+    document.getElementById("registerForm").style.display = "block";
+    document.getElementById("registerMessage").textContent = "";
+    document.getElementById("registerMessage").className = "form-message";
+}
+
+/**
+ * Switch back to the login form
+ */
+function showLoginForm() {
+    document.getElementById("registerForm").style.display = "none";
+    document.getElementById("myForm").style.display = "block";
+}
+
+/**
+ * Show delete account confirmation modal
+ */
+function showDeleteConfirm() {
+    closeSettingsPanel();
+    document.getElementById("deleteConfirmBackdrop").style.display = "block";
+    document.getElementById("deleteConfirmForm").style.display = "block";
+    document.getElementById("deletePassword").value = "";
+    document.getElementById("deleteMessage").textContent = "";
+    document.getElementById("deleteMessage").className = "form-message";
+}
+
+/**
+ * Hide delete account confirmation modal
+ */
+function hideDeleteConfirm() {
+    document.getElementById("deleteConfirmBackdrop").style.display = "none";
+    document.getElementById("deleteConfirmForm").style.display = "none";
+}
+
+/**
+ * Submit delete account request
+ */
+async function submitDeleteAccount() {
+    const password = document.getElementById("deletePassword").value;
+    const messageEl = document.getElementById("deleteMessage");
+
+    if (!password) {
+        messageEl.textContent = "Password is required.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    try {
+        const response = await fetch("/delete-account", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 200) {
+            window.location.href = "/";
+        } else {
+            messageEl.textContent = data.error || "Failed to delete account.";
+            messageEl.className = "form-message form-message-error";
+        }
+    } catch (err) {
+        messageEl.textContent = "Could not connect to server.";
+        messageEl.className = "form-message form-message-error";
+    }
+}
+
+/**
+ * Show the OwnTracks setup guide modal
+ */
+function showSetupGuide() {
+    document.getElementById("setupGuideBackdrop").style.display = "block";
+    document.getElementById("setupGuideModal").style.display = "block";
+}
+
+/**
+ * Hide the OwnTracks setup guide modal
+ */
+function hideSetupGuide() {
+    document.getElementById("setupGuideBackdrop").style.display = "none";
+    document.getElementById("setupGuideModal").style.display = "none";
+}
+
+/**
+ * Show setup guide from settings panel (closes settings first)
+ */
+function showSetupGuideFromSettings() {
+    closeSettingsPanel();
+    showSetupGuide();
+}
+
+/**
+ * Submit registration form
+ */
+async function submitRegistration() {
+    const username = document.getElementById("regUsername").value.trim();
+    const password = document.getElementById("regPassword").value;
+    const passwordConfirm = document.getElementById("regPasswordConfirm").value;
+    const messageEl = document.getElementById("registerMessage");
+
+    // Validate
+    if (!username || !password) {
+        messageEl.textContent = "Username and password are required.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    if (!/^[a-zA-Z0-9_-]{1,50}$/.test(username)) {
+        messageEl.textContent = "Username must be 1-50 characters (letters, numbers, hyphens, underscores).";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    if (password !== passwordConfirm) {
+        messageEl.textContent = "Passwords do not match.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    if (password.length < 12) {
+        messageEl.textContent = "Password must be at least 12 characters.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+    if (!/[A-Z]/.test(password)) {
+        messageEl.textContent = "Password must contain an uppercase letter.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+    if (!/[a-z]/.test(password)) {
+        messageEl.textContent = "Password must contain a lowercase letter.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+    if (!/[0-9]/.test(password)) {
+        messageEl.textContent = "Password must contain a number.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    try {
+        const response = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.status === 201) {
+            messageEl.textContent = "Account created!";
+            messageEl.className = "form-message form-message-success";
+
+            // Auto-login: session is already set by the proxy
+            closeForm();
+            showSetupGuide();
+            await getUsersAndDevices();
+            runTasks();
+        } else {
+            messageEl.textContent = data.error || "Registration failed.";
+            messageEl.className = "form-message form-message-error";
+        }
+    } catch (err) {
+        messageEl.textContent = "Could not connect to server.";
+        messageEl.className = "form-message form-message-error";
+    }
 }

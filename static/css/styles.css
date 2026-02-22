@@ -183,6 +183,7 @@ code {
    =========================== */
 #progressBar {
     position: relative;
+    z-index: 1;
     width: 100%;
     height: 48px;
     background-color: var(--color-surface);
@@ -230,7 +231,7 @@ code {
 
 #map-shadow {
     position: absolute;
-    z-index: 9999;
+    z-index: 999;
     box-shadow: inset 0 0 20px 8px rgba(0, 0, 0, 0.1);
     pointer-events: none;
     top: 0;
@@ -400,9 +401,41 @@ code {
     padding: var(--spacing-md) var(--spacing-lg);
 }
 
-/* Time period buttons */
-.time-period-btn {
-    width: 19%;
+/* Date row: start, end, apply in one line */
+.date-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: flex-end;
+    margin-bottom: var(--spacing-sm);
+}
+
+.date-col {
+    flex: 1;
+}
+
+.date-col input {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.date-col-apply {
+    flex: 0 0 auto;
+}
+
+.apply-filters-btn {
+    white-space: nowrap;
+    height: 38px;
+}
+
+/* Time preset buttons: horizontal row */
+.time-presets {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.time-presets .btn {
+    flex: 1;
     font-size: var(--font-size-xs);
     padding: var(--spacing-sm);
 }
@@ -487,8 +520,109 @@ select {
     background-color: var(--color-danger);
 }
 
+/* Password visibility toggle */
+.password-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.form-container .password-input-wrapper input {
+    padding-right: 36px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    margin: 0;
+}
+
+.password-toggle:hover {
+    color: var(--color-text-secondary);
+}
+
+.form-message {
+    font-size: var(--font-size-sm);
+    margin: var(--spacing-sm) 0;
+    min-height: 1.2em;
+}
+
+.form-message-error {
+    color: var(--color-danger);
+}
+
+.form-message-success {
+    color: var(--color-success);
+}
+
+.form-link {
+    display: block;
+    text-align: center;
+    margin-top: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-primary);
+    cursor: pointer;
+}
+
 .form-container .btn:hover {
     opacity: 0.9;
+}
+
+/* ===========================
+   Delete Confirmation Modal
+   =========================== */
+.delete-confirm-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+}
+
+.delete-warning {
+    font-size: var(--font-size-sm);
+    color: var(--color-danger);
+    margin-bottom: var(--spacing-md);
+}
+
+/* ===========================
+   Setup Guide Modal
+   =========================== */
+.setup-guide-container {
+    max-width: 380px;
+}
+
+.setup-guide-content {
+    max-height: 50vh;
+    overflow-y: auto;
+    margin-bottom: var(--spacing-md);
+}
+
+.setup-guide-content p.setup-step {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.5;
+}
+
+.setup-guide-content p.setup-step:last-child {
+    margin-bottom: 0;
+}
+
+.setup-guide-content code {
+    word-break: break-all;
 }
 
 /* ===========================
@@ -602,7 +736,7 @@ select {
     position: absolute;
     top: 0;
     right: 0;
-    width: 360px;
+    width: 500px;
     height: 100%;
     background-color: var(--color-surface);
     z-index: 1002;
@@ -651,6 +785,52 @@ select {
 
 #settingsPanelClose:hover {
     opacity: 1;
+}
+
+.settingsPanelBody {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.settingsPanelNav {
+    display: flex;
+    flex-direction: column;
+    width: 110px;
+    flex-shrink: 0;
+    padding: var(--spacing-md) var(--spacing-sm);
+    border-right: 1px solid var(--color-border);
+    background-color: var(--color-background);
+    gap: var(--spacing-xs);
+}
+
+.settings-nav-btn {
+    background: none;
+    border: none;
+    padding: var(--spacing-sm) var(--spacing-sm);
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    text-align: left;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.settings-nav-btn:hover {
+    background-color: var(--color-border-light);
+    color: var(--color-text-primary);
+}
+
+.settings-nav-btn.active {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+    font-weight: 600;
+}
+
+.settings-nav-apply {
+    margin-bottom: var(--spacing-sm);
 }
 
 .settingsPanelContent {
@@ -710,9 +890,20 @@ select {
         width: 100%;
     }
 
-    .time-period-btn {
-        width: 32%;
-        margin-bottom: var(--spacing-xs);
+    .date-row {
+        flex-wrap: wrap;
+    }
+
+    .date-col {
+        flex: 1 1 45%;
+    }
+
+    .date-col-apply {
+        flex: 1 1 100%;
+    }
+
+    .apply-filters-btn {
+        width: 100%;
     }
 }
 
@@ -765,7 +956,7 @@ select {
         border-radius: 0;
     }
 
-    .time-period-btn {
-        width: 48%;
+    .time-presets {
+        flex-wrap: wrap;
     }
 }
