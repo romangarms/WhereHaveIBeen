@@ -14,7 +14,13 @@
         <div class="form-container">
             <form action="/login" method="POST">
                 <input type='text' placeholder='Username' name='username' autocomplete="on" />
-                <input type='password' placeholder='Password' name='password' autocomplete="on" />
+                <div class="password-input-wrapper">
+                    <input type='password' placeholder='Password' name='password' autocomplete="on" />
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                        <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                    </button>
+                </div>
                 {% if login_error %}
                 <p class="form-message form-message-error">{{ login_error }}</p>
                 {% endif %}
@@ -28,8 +34,20 @@
         <h3>Create Account</h3>
         <div class="form-container">
             <input type='text' placeholder='Username' id='regUsername' autocomplete="on" />
-            <input type='password' placeholder='Password' id='regPassword' autocomplete="new-password" />
-            <input type='password' placeholder='Confirm Password' id='regPasswordConfirm' autocomplete="new-password" />
+            <div class="password-input-wrapper">
+                <input type='password' placeholder='Password' id='regPassword' autocomplete="new-password" />
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                </button>
+            </div>
+            <div class="password-input-wrapper">
+                <input type='password' placeholder='Confirm Password' id='regPasswordConfirm' autocomplete="new-password" />
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                </button>
+            </div>
             <p class="form-message" style="color: var(--color-text-muted); margin-bottom: 4px;">
                 Password must be at least 12 characters with uppercase, lowercase, and a number.
             </p>
@@ -44,10 +62,35 @@
         <h3>Delete Account</h3>
         <div class="form-container">
             <p class="delete-warning">This will permanently delete your account and all your location data. This action cannot be undone.</p>
-            <input type='password' placeholder='Enter your password to confirm' id='deletePassword' autocomplete="current-password" />
+            <div class="password-input-wrapper">
+                <input type='password' placeholder='Enter your password to confirm' id='deletePassword' autocomplete="current-password" />
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Show password">
+                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    <svg class="eye-off-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                </button>
+            </div>
             <p id="deleteMessage" class="form-message"></p>
             <button class="btn btn-danger" onclick="submitDeleteAccount()" style="width:100%">Permanently Delete My Account</button>
             <a href="#" class="form-link" onclick="hideDeleteConfirm(); return false;">Cancel</a>
+        </div>
+    </div>
+
+    <!-- Setup Guide Modal -->
+    <div id="setupGuideBackdrop" class="delete-confirm-backdrop" style="display: none;" onclick="hideSetupGuide()"></div>
+    <div class="form-popup" id="setupGuideModal" style="display: none;">
+        <h3>Set Up OwnTracks</h3>
+        <div class="form-container setup-guide-container">
+            <div class="setup-guide-content">
+                <p class="setup-step"><strong>1.</strong> Download <a href="https://apps.apple.com/app/owntracks/id692424691" target="_blank">OwnTracks for iOS</a> or <a href="https://play.google.com/store/apps/details?id=org.owntracks.android" target="_blank">OwnTracks for Android</a></p>
+                <p class="setup-step"><strong>2.</strong> Open the app and tap the <strong>(i)</strong> button in the top left</p>
+                <p class="setup-step"><strong>3.</strong> Tap <strong>Settings</strong></p>
+                <p class="setup-step"><strong>4.</strong> Change the mode from MQTT to <strong>HTTP</strong></p>
+                <p class="setup-step"><strong>5.</strong> Set <strong>UserID</strong> to your username</p>
+                <p class="setup-step"><strong>6.</strong> Set <strong>Password</strong> to your password</p>
+                <p class="setup-step"><strong>7.</strong> Set <strong>DeviceID</strong> to something memorable (e.g., "phone")</p>
+                <p class="setup-step"><strong>8.</strong> Set the <strong>URL</strong> to:<br><code>https://mini.romangarms.com/pub</code></p>
+            </div>
+            <button class="btn btn-success" onclick="hideSetupGuide()" style="width:100%">Got it!</button>
         </div>
     </div>
 
@@ -71,61 +114,66 @@
             <h1>Settings</h1>
             <button id="settingsPanelClose" onclick="closeSettingsPanel()">&times;</button>
         </div>
-        <div class="settingsPanelContent">
-            <div class="subPanel">
-                <h4>Save and Apply Settings</h4>
-                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
-                    onclick="resetMap(map)" />
-            </div>
+        <div class="settingsPanelBody">
+            <nav class="settingsPanelNav">
+                <button class="btn btn-primary settings-nav-apply" id="applySettingsButton" onclick="resetMap(map)">Apply</button>
+                <button class="settings-nav-btn active" onclick="scrollToSetting('settingsMap')">Map</button>
+                <button class="settings-nav-btn" onclick="scrollToSetting('settingsCache')">Cache</button>
+                <button class="settings-nav-btn" onclick="scrollToSetting('settingsRouting')">Routing</button>
+                <button class="settings-nav-btn" onclick="scrollToSetting('settingsAccount')">Account</button>
+            </nav>
+            <div class="settingsPanelContent">
+                <div class="subPanel" id="settingsMap">
+                    <h4>Map Settings</h4>
+                    <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
+                        map.</p>
+                    <h5>Hide Route <span class="info-icon">i
+                            <span class="tooltip-text">The route is only drawn when less than 500 GPS
+                                points are used. Adjust the date filters to see this!</span>
+                        </span></h5>
+                    <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
 
-            <div class="subPanel">
-                <h4>Map Settings</h4>
-                <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
-                    map.</p>
-                <h5>Hide Route <span class="info-icon">i
-                        <span class="tooltip-text">The route is only drawn when less than 500 GPS
-                            points are used. Adjust the date filters to see this!</span>
-                    </span></h5>
-                <input type="button" class="btn btn-danger" value="Remove Route" onclick="eraseRoute(map)" />
+                    <h5>Buffer Size <span class="info-icon">i
+                            <span class="tooltip-text">Change how large of a buffer is drawn around your route in
+                                kilometers.
+                                Note that larger values take longer to draw. Changing this will invalidate your cache.</span>
+                        </span></h5>
 
-                <h5>Buffer Size <span class="info-icon">i
-                        <span class="tooltip-text">Change how large of a buffer is drawn around your route in
-                            kilometers.
-                            Note that larger values take longer to draw. Changing this will invalidate your cache.</span>
-                    </span></h5>
+                    <p class="settingInfo">Default: 0.5km</p>
+                    <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
+                        min="0.1" max="10" />
+                </div>
 
-                <p class="settingInfo">Default: 0.5km</p>
-                <input type="number" class="form-control form-control-lg" id="circleSize" value="0.5" step="0.1"
-                    min="0.1" max="10" />
-            </div>
+                <div class="subPanel" id="settingsCache" style="display: none;">
+                    <h4>Cache <span class="info-icon">i
+                            <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
+                        </span></h4>
+                    <p class="settingInfo">
+                        <strong>Cached:</strong> <span id="cacheDateRange">No cached data</span><br>
+                        <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
+                    </p>
+                    <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
+                </div>
 
-            <div class="subPanel" id="cacheStatus" style="display: none;">
-                <h4>Cache <span class="info-icon">i
-                        <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
-                    </span></h4>
-                <p class="settingInfo">
-                    <strong>Cached:</strong> <span id="cacheDateRange">No cached data</span><br>
-                    <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
-                </p>
-                <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
-            </div>
+                <div class="subPanel" id="settingsRouting">
+                    <h4>Routing Settings</h4>
+                    <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
+                        public OSRM one.</p>
+                    <h5>Custom OSRM Router <span class="info-icon">i
+                            <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
+                        </span></h5>
 
-            <div class="subPanel">
-                <h4>Routing Settings</h4>
-                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
-                    public OSRM one.</p>
-                <h5>Custom OSRM Router <span class="info-icon">i
-                        <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
-                    </span></h5>
+                    <p class="settingInfo">Default: leave blank</p>
+                    <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
+                </div>
 
-                <p class="settingInfo">Default: leave blank</p>
-                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
-            </div>
-
-            <div class="subPanel">
-                <h4>Account</h4>
-                <p class="settingInfo">Permanently delete your account and all associated data. This cannot be undone.</p>
-                <input type="button" class="btn btn-danger" value="Delete Account" onclick="showDeleteConfirm()" />
+                <div class="subPanel" id="settingsAccount">
+                    <h4>Account</h4>
+                    <p class="settingInfo">Need help connecting OwnTracks to your account?</p>
+                    <input type="button" class="btn btn-primary" value="OwnTracks Setup Guide" onclick="showSetupGuideFromSettings()" />
+                    <p class="settingInfo" style="margin-top: var(--spacing-md);">Permanently delete your account and all associated data. This cannot be undone.</p>
+                    <input type="button" class="btn btn-danger" value="Delete Account" onclick="showDeleteConfirm()" />
+                </div>
             </div>
         </div>
     </div>
@@ -632,7 +680,7 @@
      * Update the cache status display in the UI
      */
     async function updateCacheStatusUI(cacheData, user, device) {
-        const cacheStatusEl = document.getElementById('cacheStatus');
+        const cacheStatusEl = document.getElementById('settingsCache');
         if (!cacheStatusEl) return;
 
         try {
@@ -817,9 +865,58 @@
         backdrop.classList.remove('open');
     }
 
+    // Settings nav: scroll to section and update active button
+    function scrollToSetting(id) {
+        const target = document.getElementById(id);
+        const content = document.querySelector('.settingsPanelContent');
+        if (target && content) {
+            content.scrollTo({
+                top: target.offsetTop - content.offsetTop,
+                behavior: 'smooth'
+            });
+            updateActiveNavBtn(id);
+        }
+    }
+
+    function updateActiveNavBtn(activeId) {
+        document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('onclick').includes(activeId)) {
+                btn.classList.add('active');
+            }
+        });
+    }
+
+    // Update active nav button on scroll
+    (function() {
+        const content = document.querySelector('.settingsPanelContent');
+        if (!content) return;
+
+        const sectionIds = ['settingsMap', 'settingsCache', 'settingsRouting', 'settingsAccount'];
+
+        content.addEventListener('scroll', function() {
+            const scrollTop = content.scrollTop;
+            let activeId = sectionIds[0];
+
+            for (const id of sectionIds) {
+                const el = document.getElementById(id);
+                if (el && el.offsetTop - content.offsetTop <= scrollTop + 10) {
+                    activeId = id;
+                }
+            }
+
+            updateActiveNavBtn(activeId);
+        });
+    })();
+
     // Close panels on Escape key
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
+            const setupGuide = document.getElementById('setupGuideModal');
+            if (setupGuide && setupGuide.style.display !== 'none') {
+                hideSetupGuide();
+                return;
+            }
             const deleteForm = document.getElementById('deleteConfirmForm');
             if (deleteForm && deleteForm.style.display !== 'none') {
                 hideDeleteConfirm();

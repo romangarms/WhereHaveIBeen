@@ -1,6 +1,27 @@
 let loggedIn = false;
 let currentUsername = '';
 
+/**
+ * Toggle password visibility for a password input field
+ */
+function togglePasswordVisibility(button) {
+    const input = button.parentElement.querySelector('input');
+    const eyeIcon = button.querySelector('.eye-icon');
+    const eyeOffIcon = button.querySelector('.eye-off-icon');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        eyeIcon.style.display = 'none';
+        eyeOffIcon.style.display = 'block';
+        button.setAttribute('aria-label', 'Hide password');
+    } else {
+        input.type = 'password';
+        eyeIcon.style.display = 'block';
+        eyeOffIcon.style.display = 'none';
+        button.setAttribute('aria-label', 'Show password');
+    }
+}
+
 function getCurrentUsername() {
     return currentUsername;
 }
@@ -178,6 +199,30 @@ async function submitDeleteAccount() {
 }
 
 /**
+ * Show the OwnTracks setup guide modal
+ */
+function showSetupGuide() {
+    document.getElementById("setupGuideBackdrop").style.display = "block";
+    document.getElementById("setupGuideModal").style.display = "block";
+}
+
+/**
+ * Hide the OwnTracks setup guide modal
+ */
+function hideSetupGuide() {
+    document.getElementById("setupGuideBackdrop").style.display = "none";
+    document.getElementById("setupGuideModal").style.display = "none";
+}
+
+/**
+ * Show setup guide from settings panel (closes settings first)
+ */
+function showSetupGuideFromSettings() {
+    closeSettingsPanel();
+    showSetupGuide();
+}
+
+/**
  * Submit registration form
  */
 async function submitRegistration() {
@@ -236,11 +281,12 @@ async function submitRegistration() {
         const data = await response.json();
 
         if (response.status === 201) {
-            messageEl.textContent = "Account created! Loading...";
+            messageEl.textContent = "Account created!";
             messageEl.className = "form-message form-message-success";
 
             // Auto-login: session is already set by the proxy
             closeForm();
+            showSetupGuide();
             await getUsersAndDevices();
             runTasks();
         } else {
