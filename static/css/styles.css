@@ -301,7 +301,7 @@ code {
     margin-top: 0;
 }
 
-/* Info Panel (Setup page) */
+/* Info Panel (How To Use / About pages) */
 #infoPanel {
     margin: var(--spacing-xl);
     padding: var(--spacing-xl);
@@ -330,10 +330,17 @@ code {
     padding-left: var(--spacing-xl);
 }
 
-#infoPanel a {
-    display: inline-block;
-    margin-right: var(--spacing-lg);
-    margin-bottom: var(--spacing-sm);
+#infoPanel .screenshot-placeholder {
+    margin: var(--spacing-md) 0 var(--spacing-lg) 0;
+    text-align: center;
+}
+
+#infoPanel .screenshot-placeholder img {
+    max-width: 100%;
+    max-height: 500px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
 }
 
 /* ===========================

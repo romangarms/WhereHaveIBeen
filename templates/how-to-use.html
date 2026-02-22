@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{%block title %}
+<title>How To Use WhereHaveIBeen</title>
+{%endblock%}
+
+{% block main %}
+
+<div id="infoPanel">
+
+    <h1>How To Use WhereHaveIBeen</h1>
+    <p>WhereHaveIBeen visualizes your location history on an interactive map.
+    All you need to do is create an account and set up the OwnTracks app on your phone.</p>
+
+    <h1>Step 1: Create an Account</h1>
+    <p>Visit the <a href="/">home page</a> and click <strong>Create Account</strong> on the
+    login form. Choose a username and a strong password (at least 12 characters with uppercase,
+    lowercase, and a number). Once your account is created, you'll be automatically logged in.</p>
+
+    <h1>Step 2: Set Up OwnTracks on Your Phone</h1>
+    <p>OwnTracks is a free, open-source app that periodically sends your location to the
+    WhereHaveIBeen server. Follow these steps to configure it:</p>
+
+    <h3>2.1 Download the App</h3>
+    <p>Download OwnTracks for
+    <a href="https://apps.apple.com/app/owntracks/id692424691" target="_blank">iOS</a> or
+    <a href="https://play.google.com/store/apps/details?id=org.owntracks.android" target="_blank">Android</a>.</p>
+    <!-- Screenshot: App Store / Play Store listing -->
+
+    <h3>2.2 Open Settings</h3>
+    <p>Open the app and tap the <strong>(i)</strong> button in the top left corner.
+    You'll see the Status Info page showing your connection status. From here, tap <strong>Settings</strong>.</p>
+    <div class="screenshot-placeholder">
+        <img src="/static/screenshots/owntracks status.jpg" alt="OwnTracks Status Info page">
+    </div>
+
+    <h3>2.3 Switch to HTTP Mode</h3>
+    <p>Change the connection mode from MQTT to <strong>HTTP</strong>. This tells the app to
+    send location updates directly to the WhereHaveIBeen server.</p>
+
+    <h3>2.4 Enter Your Credentials</h3>
+    <p>Set <strong>UserID</strong> to the username you created in Step 1.
+    Set <strong>Password</strong> to your password.</p>
+
+    <h3>2.5 Set Your Device ID</h3>
+    <p>Set <strong>DeviceID</strong> to something memorable, like "phone" or "pixel".
+    This label helps identify the device on the map if you use multiple devices.</p>
+
+    <h3>2.6 Set the Server URL</h3>
+    <p>Set the <strong>URL</strong> to:</p>
+    <p><code>https://mini.romangarms.com/pub</code></p>
+
+    <div class="screenshot-placeholder">
+        <img src="/static/screenshots/owntracks settings.jpg" alt="OwnTracks settings screen showing Mode, DeviceID, UserID, Password, and URL fields">
+    </div>
+
+    <h3>2.7 Verify It Works</h3>
+    <p>Go back to the main OwnTracks screen and tap the upload button (arrow icon) to send
+    your current location. Then tap the <strong>(i)</strong> button to check the Status Info page.
+    If everything is set up correctly, you should see your connection URL and a status of "idle".</p>
+
+    <h1>Step 3: View Your Map</h1>
+    <p>Head back to the <a href="/">WhereHaveIBeen home page</a> and log in. After a few
+    location updates are recorded, your map will start showing the areas you've explored.
+    The blue overlay shows everywhere you've been.</p>
+    <p>Use the date filters to change the time frame, or switch between devices. Open
+    <strong>Settings</strong> (gear icon on the map) to adjust the buffer size or other options.</p>
+
+</div>
+
+{%endblock%}

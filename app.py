@@ -38,9 +38,13 @@ def guide():
     return render_template("about.html")
 
 
+@app.route("/how-to-use")
+def how_to_use():
+    return render_template("how-to-use.html")
+
 @app.route("/setup")
-def setup():
-    return render_template("setup.html")
+def setup_redirect():
+    return redirect("/how-to-use")
 
 
 """Sign out by deleting cookie
