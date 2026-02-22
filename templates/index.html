@@ -9,12 +9,15 @@
 
 <!-- Get OwnTracks server info so we can read data from it -->
 <div id="map-container">
-    <div class="form-popup" id="myForm" style="display: none;">
+    <div class="form-popup" id="myForm" style="display: {% if login_error %}block{% else %}none{% endif %};">
         <h3>Log In</h3>
         <div class="form-container">
             <form action="/login" method="POST">
                 <input type='text' placeholder='Username' name='username' autocomplete="on" />
                 <input type='password' placeholder='Password' name='password' autocomplete="on" />
+                {% if login_error %}
+                <p class="form-message form-message-error">{{ login_error }}</p>
+                {% endif %}
                 <input class="btn btn-success" type='submit' value='Log In' />
             </form>
             <a href="#" class="form-link" onclick="showRegisterForm(); return false;">Create Account</a>
@@ -70,6 +73,12 @@
         </div>
         <div class="settingsPanelContent">
             <div class="subPanel">
+                <h4>Save and Apply Settings</h4>
+                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
+                    onclick="resetMap(map)" />
+            </div>
+
+            <div class="subPanel">
                 <h4>Map Settings</h4>
                 <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
                     map.</p>
@@ -90,18 +99,6 @@
                     min="0.1" max="10" />
             </div>
 
-            <div class="subPanel">
-                <h4>Routing Settings</h4>
-                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
-                    public OSRM one.</p>
-                <h5>Custom OSRM Router <span class="info-icon">i
-                        <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
-                    </span></h5>
-
-                <p class="settingInfo">Default: leave blank</p>
-                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
-            </div>
-
             <div class="subPanel" id="cacheStatus" style="display: none;">
                 <h4>Cache <span class="info-icon">i
                         <span class="tooltip-text">Cached buffer polygons speed up loading on return visits. Only new GPS data since your last visit needs to be processed.</span>
@@ -114,15 +111,21 @@
             </div>
 
             <div class="subPanel">
-                <h4>Account</h4>
-                <p class="settingInfo">Permanently delete your account and all associated data. This cannot be undone.</p>
-                <input type="button" class="btn btn-danger" value="Delete Account" onclick="showDeleteConfirm()" />
+                <h4>Routing Settings</h4>
+                <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
+                    public OSRM one.</p>
+                <h5>Custom OSRM Router <span class="info-icon">i
+                        <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
+                    </span></h5>
+
+                <p class="settingInfo">Default: leave blank</p>
+                <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
             </div>
 
             <div class="subPanel">
-                <h4>Save and Apply Settings</h4>
-                <input type="button" class="btn btn-primary" value="Apply" id="applySettingsButton"
-                    onclick="resetMap(map)" />
+                <h4>Account</h4>
+                <p class="settingInfo">Permanently delete your account and all associated data. This cannot be undone.</p>
+                <input type="button" class="btn btn-danger" value="Delete Account" onclick="showDeleteConfirm()" />
             </div>
         </div>
     </div>
@@ -205,7 +208,7 @@
     }
 
     async function runTasks() {
-        const user = document.getElementById('userBox').value;
+        const user = getCurrentUsername();
         const device = document.getElementById('deviceBox').value;
 
         // Initialize IndexedDB
@@ -654,7 +657,7 @@
      * Clear cache for current user/device
      */
     async function clearCurrentCache() {
-        const user = document.getElementById('userBox').value;
+        const user = getCurrentUsername();
         const device = document.getElementById('deviceBox').value;
 
         if (confirm('Clear cached data for ' + user + '/' + device + '? This will recalculate all routes on next load.')) {
@@ -702,19 +705,15 @@
                 <h1> Filters </h1>
                 <p class="settingInfo">Is your data showing incorrectly on the map? Try adjusting these settings. Make
                     sure
-                    the user and device are correct, and try changing time frame.</p>
+                    the device is correct, and try changing time frame.</p>
 
             </div>
 
             <div class="subPanel">
-                <h4>Choose a user and device</h4>
-                <p class="settingInfo">Choose which device to track. This is your OwnTracks user and device.</p>
+                <h4>Choose a device</h4>
+                <p class="settingInfo">Choose which device to track.</p>
 
-
-                <select class="form-select" id="userBox">
-                    <option value="" selected disabled>Choose a user</option>
-                </select>
-                <select class="form-select" id="deviceBox">
+                <select class="form-select" id="deviceBox" onchange="resetMap()">
                     <option value="" selected disabled>Choose a device</option>
                 </select>
             </div>
@@ -724,33 +723,29 @@
                 <h4>Time frame</h4>
                 <p class="settingInfo">Filter the map to only shows GPS data between these two dates. Time is in UTC.
                 </p>
-                <div class="dateFilters" style="float:left; width: 50%;">
-                    <h5>Start Date </h5>
-
-                    <input type="datetime-local" class="input-group date" id="startBox" onkeyup="" name="trip-start"
-                        value="2015-01-01T00:00" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                <div class="date-row">
+                    <div class="date-col">
+                        <h5>Start Date</h5>
+                        <input type="datetime-local" class="input-group date" id="startBox" name="trip-start"
+                            value="2015-01-01T00:00" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                    </div>
+                    <div class="date-col">
+                        <h5>End Date</h5>
+                        <input type="datetime-local" class="input-group date" id="endBox" name="trip-start"
+                            value="2099-12-31T23:59" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                    </div>
+                    <div class="date-col date-col-apply">
+                        <button type="button" class="btn btn-outline-primary apply-filters-btn" onclick="setCustomTimeFilter(); resetMap(map)">Apply</button>
+                    </div>
                 </div>
-                <div class="dateFilters" style="float:left; width: 50%;">
-                    <h5>End Date </h5>
-                    <input type="datetime-local" class="input-group date" id="endBox" onkeyup="" name="trip-start"
-                        value="2099-12-31T23:59" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+
+                <div class="time-presets">
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('month')">Last Month</button>
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('week')">Last Week</button>
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('48hrs')">48 Hours</button>
+                    <button type="button" class="btn btn-primary time-period-btn" onclick="changeDateRange('24hrs')">24 Hours</button>
+                    <button type="button" class="btn btn-success time-period-btn" onclick="loadAllTimeData()">All Time</button>
                 </div>
-
-                <input type="button" class="btn btn-primary time-period-btn" value="Last Month"
-                    onclick="changeDateRange('month')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Last Week"
-                    onclick="changeDateRange('week')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Last 48 Hours"
-                    onclick="changeDateRange('48hrs')" />
-                <input type="button" class="btn btn-primary time-period-btn" value="Last 24 Hours"
-                    onclick="changeDateRange('24hrs')" />
-                <input type="button" class="btn btn-success time-period-btn" value="All Time"
-                    onclick="loadAllTimeData()" />
-
-            </div>
-            <div class="subPanel">
-                <h4>Apply Filters</h4>
-                <input type="button" class="btn btn-primary" value="Apply" onclick="setCustomTimeFilter(); resetMap(map)" />
             </div>
         </div>
     </div>

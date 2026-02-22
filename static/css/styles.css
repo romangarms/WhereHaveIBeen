@@ -400,9 +400,41 @@ code {
     padding: var(--spacing-md) var(--spacing-lg);
 }
 
-/* Time period buttons */
-.time-period-btn {
-    width: 19%;
+/* Date row: start, end, apply in one line */
+.date-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: flex-end;
+    margin-bottom: var(--spacing-sm);
+}
+
+.date-col {
+    flex: 1;
+}
+
+.date-col input {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.date-col-apply {
+    flex: 0 0 auto;
+}
+
+.apply-filters-btn {
+    white-space: nowrap;
+    height: 38px;
+}
+
+/* Time preset buttons: horizontal row */
+.time-presets {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.time-presets .btn {
+    flex: 1;
     font-size: var(--font-size-xs);
     padding: var(--spacing-sm);
 }
@@ -752,9 +784,20 @@ select {
         width: 100%;
     }
 
-    .time-period-btn {
-        width: 32%;
-        margin-bottom: var(--spacing-xs);
+    .date-row {
+        flex-wrap: wrap;
+    }
+
+    .date-col {
+        flex: 1 1 45%;
+    }
+
+    .date-col-apply {
+        flex: 1 1 100%;
+    }
+
+    .apply-filters-btn {
+        width: 100%;
     }
 }
 
@@ -807,7 +850,7 @@ select {
         border-radius: 0;
     }
 
-    .time-period-btn {
-        width: 48%;
+    .time-presets {
+        flex-wrap: wrap;
     }
 }

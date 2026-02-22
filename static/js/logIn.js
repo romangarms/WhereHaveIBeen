@@ -1,4 +1,9 @@
 let loggedIn = false;
+let currentUsername = '';
+
+function getCurrentUsername() {
+    return currentUsername;
+}
 
 function checkIfLoggedIn() {
     if (loggedIn) {
@@ -24,28 +29,16 @@ async function getUsersAndDevices() {
 
         const data = await response.json(); // Parse the JSON from the response
 
-        // Iterate through the data and populate the sets
-        let select = document.getElementById("userBox");
+        // Populate device dropdown and store username for cache key
+        let select = document.getElementById("deviceBox");
         select.innerHTML = '';
-
-        select = document.getElementById("deviceBox");
-        select.innerHTML = '';
-
-        let el;
 
         data.forEach(entry => {
             if (entry.username) {
-                select = document.getElementById("userBox");
-
-                el = document.createElement("option");
-                el.textContent = entry.username;
-                el.value = entry.username;
-                select.appendChild(el);
+                currentUsername = entry.username;
             }
             if (entry.device) {
-                select = document.getElementById("deviceBox");
-
-                el = document.createElement("option");
+                const el = document.createElement("option");
                 el.textContent = entry.device;
                 el.value = entry.device;
                 select.appendChild(el);
@@ -200,8 +193,35 @@ async function submitRegistration() {
         return;
     }
 
+    if (!/^[a-zA-Z0-9_-]{1,50}$/.test(username)) {
+        messageEl.textContent = "Username must be 1-50 characters (letters, numbers, hyphens, underscores).";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
     if (password !== passwordConfirm) {
         messageEl.textContent = "Passwords do not match.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+
+    if (password.length < 12) {
+        messageEl.textContent = "Password must be at least 12 characters.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+    if (!/[A-Z]/.test(password)) {
+        messageEl.textContent = "Password must contain an uppercase letter.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+    if (!/[a-z]/.test(password)) {
+        messageEl.textContent = "Password must contain a lowercase letter.";
+        messageEl.className = "form-message form-message-error";
+        return;
+    }
+    if (!/[0-9]/.test(password)) {
+        messageEl.textContent = "Password must contain a number.";
         messageEl.className = "form-message form-message-error";
         return;
     }

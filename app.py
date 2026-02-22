@@ -12,6 +12,7 @@ from requests.auth import HTTPBasicAuth
 from datetime import timedelta, datetime
 import os
 import pytz
+import re
 from dotenv import load_dotenv
 
 INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
@@ -61,13 +62,24 @@ def sign_out():
 @app.route("/login", methods=["POST", "GET"])
 def login():
     if request.method == "POST":
-        # Retrieve user inputs from the form
         username = request.form["username"]
         password = request.form["password"]
 
-        session.permanent = True  # Make the session permanent
+        # Validate credentials against OwnTracks before storing in session
+        try:
+            validation = requests.get(
+                OWNTRACKS_URL + "/api/0/last",
+                auth=HTTPBasicAuth(username, password),
+                timeout=10,
+            )
+            if validation.status_code != 200:
+                app.logger.info(f"Login: OwnTracks returned {validation.status_code} for user '{username}'")
+                return render_template("index.html", login_error="Invalid username or password."), 401
+        except requests.RequestException as err:
+            app.logger.error(f"Login: Error validating with OwnTracks: {err}")
+            return render_template("index.html", login_error="Could not connect to server."), 500
 
-        # Store information in the session
+        session.permanent = True
         session["username"] = username
         session["password"] = password
 
@@ -76,26 +88,71 @@ def login():
 
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.get_json()
-    response = requests.post(OWNTRACKS_URL + "/api/register", json=data, timeout=10)
-    if response.status_code == 201:
-        session.permanent = True
-        session["username"] = data.get("username")
-        session["password"] = data.get("password")
-    return jsonify(response.json()), response.status_code
+    try:
+        data = request.get_json()
+        username = data.get("username", "").strip() if data else ""
+        password = data.get("password", "") if data else ""
+
+        if not username or not re.match(r'^[a-zA-Z0-9_-]{1,50}$', username):
+            return jsonify({"error": "Username must be 1-50 characters (letters, numbers, hyphens, underscores)."}), 400
+
+        if len(password) < 12:
+            return jsonify({"error": "Password must be at least 12 characters."}), 400
+        if not re.search(r'[A-Z]', password):
+            return jsonify({"error": "Password must contain an uppercase letter."}), 400
+        if not re.search(r'[a-z]', password):
+            return jsonify({"error": "Password must contain a lowercase letter."}), 400
+        if not re.search(r'[0-9]', password):
+            return jsonify({"error": "Password must contain a number."}), 400
+
+        payload = {"username": username, "password": password}
+        response = requests.post(OWNTRACKS_URL + "/api/register", json=payload, timeout=10)
+
+        if response.status_code == 201:
+            session.permanent = True
+            session["username"] = username
+            session["password"] = password
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException as err:
+        app.logger.error(f"Register: Error communicating with OwnTracks: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+    except Exception as err:
+        app.logger.error(f"Register: Unexpected error: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
 
 
 @app.route("/delete-account", methods=["POST"])
 def delete_account():
-    data = request.get_json()
-    payload = {
-        "username": session.get("username"),
-        "password": data.get("password")
-    }
-    response = requests.post(OWNTRACKS_URL + "/api/delete-account", json=payload, timeout=10)
-    if response.status_code == 200:
-        session.clear()
-    return jsonify(response.json()), response.status_code
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "Not logged in."}), 401
+
+    try:
+        data = request.get_json()
+        password = data.get("password", "") if data else ""
+
+        if not password:
+            return jsonify({"error": "Password is required."}), 400
+
+        payload = {
+            "username": username,
+            "password": password,
+        }
+        response = requests.post(OWNTRACKS_URL + "/api/delete-account", json=payload, timeout=10)
+
+        if response.status_code == 200:
+            session.clear()
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException as err:
+        app.logger.error(f"DeleteAccount: Error communicating with OwnTracks: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+    except Exception as err:
+        app.logger.error(f"DeleteAccount: Unexpected error: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
 
 
 @app.route("/save_settings", methods=["POST"])
