@@ -71,9 +71,13 @@ def login():
 
         # Validate credentials against OwnTracks before storing in session
         try:
+            # Scope to this user. The server enforces that /api/0/ reads carry
+            # a ?user= matching the authenticated account, so an unscoped call
+            # is rejected; a valid login still gets 200 for its own user.
             validation = requests.get(
                 OWNTRACKS_URL + "/api/0/last",
                 auth=HTTPBasicAuth(username, password),
+                params={"user": username.lower()},
                 timeout=10,
             )
             if validation.status_code != 200:
@@ -239,15 +243,19 @@ def get_locations():
 def get_users_devices():
     try:
 
-        # go make the request with login info from cookie
+        # Scope the recorder query to the logged-in user. Unscoped, /api/0/last
+        # returns every user's last position (and the server rejects it under
+        # per-user isolation); the client-side filter below stays as defence in
+        # depth.
+        username = session.get("username")
         response = requests.get(
             OWNTRACKS_URL + "/api/0/last",
             auth=HTTPBasicAuth(session.get("username"), session.get("password")),
+            params={"user": username.lower()} if username else None,
         )
         response.raise_for_status()
         data = response.json()
         # Filter to only the logged-in user's data
-        username = session.get("username")
         app.logger.info(f"UsersDevices: OwnTracks returned {len(data)} entries, filtering for user '{username}'")
         app.logger.debug(f"UsersDevices: Usernames in response: {[e.get('username') for e in data]}")
         filtered = [entry for entry in data if entry.get("username", "").lower() == username.lower()]
