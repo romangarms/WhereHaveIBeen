@@ -569,11 +569,12 @@
     }
 
     /**
-     * Render the visitor-frequency heatmap. Fetches raw GPS points for the current
-     * device/date range and draws them with Leaflet.heat. Bypasses the buffer cache.
+     * Render the visitor-frequency heatmap. Mirrors the route cache flow: on an
+     * all-time query it reuses the cached frequency grid and fetches only new GPS
+     * points since the last cached timestamp, folding their counts into the grid.
+     * Custom date ranges bypass the cache and fetch the full range.
      */
     async function runHeatmap(user, device) {
-        usingCache = false;
         console.log("Rendering heatmap view");
 
         setProgressBarNumSteps(3);
@@ -587,25 +588,96 @@
         closeForm();
         updateProgressBar();
 
-        setProgressMessage("Fetching location data...");
-        const data = await fetchLocations();
+        // Try to reuse a cached frequency grid (all-time queries only)
+        let cache = null;
+        let grid = null;
+        if (isAllTimeQuery()) {
+            try {
+                const cached = await getHeatmapCache(user, device);
+                if (cached && validateHeatmapCache(cached)) {
+                    cache = cached;
+                    grid = deserializeHeatGrid(cached.cells);
+                }
+            } catch (err) {
+                console.error("Error reading heatmap cache:", err);
+            }
+        }
+        usingCache = !!cache;
 
-        if (!data || data.isEmpty) {
+        // Restore metrics and date inputs from cache
+        if (cache) {
+            setCachedMetrics(cache.metrics);
+            if (firstLoad) {
+                if (cache.startTimestamp) {
+                    document.getElementById('startBox').value = toLocalDatetimeInputValue(new Date(cache.startTimestamp));
+                }
+                document.getElementById('endBox').value = toLocalDatetimeInputValue(new Date());
+                firstLoad = false;
+            }
+        }
+
+        // Fetch: only new data when we have a valid cache, otherwise the full range
+        let newData;
+        if (cache) {
+            const cacheDate = new Date(cache.timestamp);
+            cacheDate.setSeconds(cacheDate.getSeconds() + 1);
+            setProgressMessage("Fetching new data...");
+            newData = await fetchLocations({ startDate: cacheDate.toISOString(), taskName: "fetching new data" });
+        } else {
+            grid = new Map();
+            setProgressMessage("Fetching location data...");
+            newData = await fetchLocations();
+        }
+
+        // Bail only when there's nothing cached and nothing fetched
+        const hasNewData = newData && !newData.isEmpty && newData.features && newData.features.length > 0;
+        if (!cache && !hasNewData) {
             console.log("No data available");
             setProgressMessage("No data available");
             return;
         }
         updateProgressBar();
 
-        setProgressMessage("Building heatmap...");
-        renderHeatmap(data);
+        // Fold any new points into the grid and update timestamps/metrics
+        let latest = cache?.timestamp || null;
+        let earliest = cache?.startTimestamp || null;
+        if (hasNewData) {
+            buildHeatGrid(newData, grid);
+            latest = getLatestTimestamp(newData) || latest;
+            if (!earliest) earliest = getEarliestTimestamp(newData);
+            if (cache) {
+                getOwntracksStatsIncremental(newData);
+            } else {
+                getOwntracksStats(newData);
+            }
+        }
 
-        // Distance/area are buffer-derived and don't apply in heatmap mode;
-        // altitude/velocity still do.
+        // Distance/area are buffer-derived and don't apply in heatmap mode
         resetCoverageStats();
-        getOwntracksStats(data);
 
-        setProgressMessage("Complete");
+        setProgressMessage("Building heatmap...");
+        renderHeatGrid(grid);
+
+        // Persist the merged grid (all-time queries only)
+        if (isAllTimeQuery()) {
+            const cacheData = {
+                cells: serializeHeatGrid(grid),
+                cellDeg: HEATMAP_CELL_DEG,
+                timestamp: latest,
+                startTimestamp: earliest,
+                metrics: { highestAltitude, highestVelocity }
+            };
+            try {
+                await setHeatmapCache(user, device, cacheData);
+                completeTask("heatmap cache saved", 0);
+            } catch (err) {
+                console.error("Failed to save heatmap cache:", err);
+            }
+            updateHeatmapCacheStatusUI(cacheData, user, device);
+        }
+
+        // Match routes mode: note when the view came straight from cache
+        setProgressMessage(cache && !hasNewData ? "Complete - loaded from cache" : "Complete");
         updateProgressBar();
     }
 
@@ -791,15 +863,40 @@
     }
 
     /**
-     * Clear cache for current user/device
+     * Update the cache status display for the heatmap cache (used in heatmap mode).
+     */
+    async function updateHeatmapCacheStatusUI(cacheData, user, device) {
+        const cacheStatusEl = document.getElementById('settingsCache');
+        if (!cacheStatusEl) return;
+
+        try {
+            const cacheSize = await getCacheSize(user, device, '_heatmap');
+
+            if (cacheData && cacheData.startTimestamp && cacheData.timestamp) {
+                document.getElementById('cacheDateRange').textContent =
+                    formatCacheDate(new Date(cacheData.startTimestamp)) + ' - ' + formatCacheDate(new Date(cacheData.timestamp));
+            } else {
+                document.getElementById('cacheDateRange').textContent = 'No cached data';
+            }
+
+            document.getElementById('cacheSize').textContent = formatBytes(cacheSize);
+            cacheStatusEl.style.display = 'block';
+        } catch (err) {
+            console.error("Error updating heatmap cache status UI:", err);
+        }
+    }
+
+    /**
+     * Clear cache for current user/device (both route and heatmap caches)
      */
     async function clearCurrentCache() {
         const user = getCurrentUsername();
         const device = document.getElementById('deviceBox').value;
 
-        if (confirm('Clear cached data for ' + user + '/' + device + '? This will recalculate all routes on next load.')) {
+        if (confirm('Clear cached data for ' + user + '/' + device + '? This will recalculate everything on next load.')) {
             try {
                 await clearCache(user, device);
+                await clearHeatmapCache(user, device);
                 console.log("Cache cleared");
                 document.getElementById('cacheDateRange').textContent = 'No cached data';
                 document.getElementById('cacheSize').textContent = '0 Bytes';

@@ -360,12 +360,6 @@ async function drawBuffer(lineString, tolerance) {
     return buffered;
 }
 
-/**
- * Render a visitor-frequency heatmap from raw GPS data using Leaflet.heat.
- * Raw points are aggregated into a fine grid so that (a) intensity reflects how
- * often an area was visited and (b) very large datasets stay responsive.
- * @param {Object} data - GeoJSON FeatureCollection from fetchLocations()
- */
 // --- Heatmap tunables -------------------------------------------------------
 // Spatial resolution: ~0.0006 deg ~= 65 m cells. Fine enough to resolve distinct
 // places while still collapsing repeat/stationary pings so frequency accumulates.
@@ -381,27 +375,60 @@ const HEATMAP_MAX_ZOOM = 12;
 const HEATMAP_GRADIENT = { 0.0: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red' };
 // ---------------------------------------------------------------------------
 
-function renderHeatmap(data) {
-    let start = Date.now();
-
+/**
+ * Accumulate raw GPS points into a frequency grid, keyed "gx_gy" (cell indices),
+ * value = visit count. Cells merge by simple addition, so this can be called
+ * repeatedly to fold new data into an existing grid (used for incremental caching).
+ * @param {Object} data - GeoJSON FeatureCollection from fetchLocations()
+ * @param {Map<string, number>} grid - Existing grid to add to (defaults to a new one)
+ * @returns {Map<string, number>} The grid
+ */
+function buildHeatGrid(data, grid = new Map()) {
     const cell = HEATMAP_CELL_DEG;
-    const grid = new Map();
-
     for (const f of data.features) {
         const c = f.geometry?.coordinates;
         // Reuse the same 100 m accuracy filter used for route filtering
         if (!c || f.properties.acc >= 100) continue;
         const [lng, lat] = c;
         const key = Math.round(lat / cell) + '_' + Math.round(lng / cell);
-        let e = grid.get(key);
-        if (!e) {
-            e = { latSum: 0, lngSum: 0, count: 0 };
-            grid.set(key, e);
-        }
-        e.latSum += lat;
-        e.lngSum += lng;
-        e.count++;
+        grid.set(key, (grid.get(key) || 0) + 1);
     }
+    return grid;
+}
+
+/**
+ * Serialize a heat grid to a compact array for caching: [[gx, gy, count], ...].
+ */
+function serializeHeatGrid(grid) {
+    const cells = [];
+    for (const [key, count] of grid) {
+        const [gy, gx] = key.split('_');
+        cells.push([Number(gx), Number(gy), count]);
+    }
+    return cells;
+}
+
+/**
+ * Rebuild a heat grid Map from its cached [[gx, gy, count], ...] representation.
+ */
+function deserializeHeatGrid(cells) {
+    const grid = new Map();
+    if (!Array.isArray(cells)) return grid;
+    for (const [gx, gy, count] of cells) {
+        grid.set(gy + '_' + gx, count);
+    }
+    return grid;
+}
+
+/**
+ * Render a frequency grid to the map as a Leaflet.heat layer. Each cell becomes a
+ * heat point at its cell center, weighted by a logarithmic function of its count.
+ * @param {Map<string, number>} grid - Grid keyed "gx_gy" with visit counts
+ */
+function renderHeatGrid(grid) {
+    let start = Date.now();
+
+    const cell = HEATMAP_CELL_DEG;
 
     // Logarithmic intensity scaling: a place visited 100+ times would otherwise
     // pin `max` so high that everywhere else collapses to a single faint shade.
@@ -410,10 +437,11 @@ function renderHeatmap(data) {
     const heatData = [];
     const bounds = [];
     const intensities = [];
-    for (const e of grid.values()) {
-        const lat = e.latSum / e.count;
-        const lng = e.lngSum / e.count;
-        const intensity = Math.log(e.count + 1);
+    for (const [key, count] of grid) {
+        const [gy, gx] = key.split('_');
+        const lat = Number(gy) * cell;
+        const lng = Number(gx) * cell;
+        const intensity = Math.log(count + 1);
         heatData.push([lat, lng, intensity]);
         bounds.push([lat, lng]);
         intensities.push(intensity);
@@ -445,6 +473,14 @@ function renderHeatmap(data) {
 
     let timeTaken = Date.now() - start;
     completeTask("rendering heatmap", timeTaken);
+}
+
+/**
+ * Render a visitor-frequency heatmap directly from raw data (no-cache path).
+ * @param {Object} data - GeoJSON FeatureCollection from fetchLocations()
+ */
+function renderHeatmap(data) {
+    renderHeatGrid(buildHeatGrid(data));
 }
 
 function addPopup(lat, lng, feature) {
