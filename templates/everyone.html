@@ -1,0 +1,107 @@
+{% extends "layout.html" %}
+
+{% block title %}
+<title>Everyone's Roads</title>
+{% endblock %}
+
+{% block main %}
+
+<div class="container-fluid" style="padding: var(--spacing-md, 16px);">
+    <h1>Everyone's roads</h1>
+    <p>The combined roads everyone on this server has driven, merged into a single anonymized shape.</p>
+    <p id="everyoneStatus" class="settingInfo" style="min-height: 1.2em;"></p>
+    <div id="everyoneMap" style="height: 65vh; width: 100%; border-radius: 8px; overflow: hidden;"></div>
+
+    <div id="everyoneStats" style="display: flex; flex-wrap: wrap; gap: var(--spacing-md, 16px); margin-top: var(--spacing-md, 16px);">
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Total distance travelled</h4>
+            <div id="totalDist"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Area explored</h4>
+            <div id="totalArea"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Percentage of west coast covered</h4>
+            <div id="totalAreaPct"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Highest altitude</h4>
+            <div id="highestAltitude"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Highest velocity</h4>
+            <div id="highestVelocity"></div>
+        </div>
+    </div>
+
+    <!-- Hidden: the shared stat helpers (getBufferStats) report into the progress
+         bar via completeTask(); this keeps them happy without showing a bar. -->
+    <div id="progressBar" style="display: none;">
+        <div id="progressBarInner"></div>
+        <span id="progressBarMessage"></span>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Use the global `map` that the shared renderers in drawOnMap.js expect, so
+    // this page reuses renderCachedBuffer() and the stat helpers in manageData.js
+    // rather than reimplementing them. Same map system, different data source.
+    var map = L.map('everyoneMap').setView([37.7749, -122.4194], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    async function loadEveryone() {
+        const status = document.getElementById('everyoneStatus');
+        status.textContent = "Loading everyone's roads… (the first load can take a while)";
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 125000);
+            const resp = await fetch('/all-roads', { signal: controller.signal });
+            clearTimeout(timer);
+
+            if (resp.status === 401) { window.location.href = "/"; return; }
+            if (resp.status === 503) {
+                // Backend is computing the shape in the background — retry shortly.
+                status.textContent = "Still computing on the server — retrying in a few seconds…";
+                setTimeout(loadEveryone, 5000);
+                return;
+            }
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+
+            const buffer = await resp.json();
+            if (!buffer || !buffer.geometry) {
+                status.textContent = "No road data available yet.";
+                return;
+            }
+
+            // Render with the same blue buffer style as the main map (one-shot
+            // render, so nothing to erase first).
+            renderCachedBuffer(buffer, "blue");
+
+            // Reuse the main page's stat helpers + formatting. Area / % west coast
+            // come from the polygon; the population-level max speed/altitude and
+            // combined distance come from the backend in the Feature properties.
+            const props = buffer.properties || {};
+            resetCoverageStats();
+            getBufferStats(buffer);
+            setCachedMetrics({
+                highestAltitude: props.max_alt || 0,
+                highestVelocity: props.max_vel || 0,
+                totalDistance: props.distance_km || 0
+            });
+
+            status.textContent = "";
+        } catch (err) {
+            console.error("Everyone's roads load failed:", err);
+            status.textContent = "Couldn't load everyone's roads — refresh to try again.";
+        }
+    }
+
+    loadEveryone();
+</script>
+{% endblock %}
