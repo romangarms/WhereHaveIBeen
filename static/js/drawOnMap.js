@@ -1,6 +1,9 @@
 // Track all OSRM routing controls so they can be properly removed
 let routingControls = [];
 
+// Track the heatmap layer so it can be cleared on re-render
+let heatLayer = null;
+
 /**
  * Given the location data, list of latlngs, and color, this function calculates the routes for all given latlngs and draws it on the map as a single object.
  * @param {*} data retrieved from fetchLocations();
@@ -357,6 +360,93 @@ async function drawBuffer(lineString, tolerance) {
     return buffered;
 }
 
+/**
+ * Render a visitor-frequency heatmap from raw GPS data using Leaflet.heat.
+ * Raw points are aggregated into a fine grid so that (a) intensity reflects how
+ * often an area was visited and (b) very large datasets stay responsive.
+ * @param {Object} data - GeoJSON FeatureCollection from fetchLocations()
+ */
+// --- Heatmap tunables -------------------------------------------------------
+// Spatial resolution: ~0.0006 deg ~= 65 m cells. Fine enough to resolve distinct
+// places while still collapsing repeat/stationary pings so frequency accumulates.
+const HEATMAP_CELL_DEG = 0.0006;
+// Data-driven scaling: the color ceiling is the Nth-percentile cell intensity (not
+// the single busiest cell), so one extreme outlier can't wash everywhere else out.
+const HEATMAP_SCALE_PERCENTILE = 0.99;
+// Visual-only constants (pixels / appearance — intentionally independent of the data).
+const HEATMAP_RADIUS_PX = 12;
+const HEATMAP_BLUR_PX = 10;
+const HEATMAP_MIN_OPACITY = 0.25;
+const HEATMAP_MAX_ZOOM = 12;
+const HEATMAP_GRADIENT = { 0.0: 'blue', 0.3: 'cyan', 0.5: 'lime', 0.7: 'yellow', 1.0: 'red' };
+// ---------------------------------------------------------------------------
+
+function renderHeatmap(data) {
+    let start = Date.now();
+
+    const cell = HEATMAP_CELL_DEG;
+    const grid = new Map();
+
+    for (const f of data.features) {
+        const c = f.geometry?.coordinates;
+        // Reuse the same 100 m accuracy filter used for route filtering
+        if (!c || f.properties.acc >= 100) continue;
+        const [lng, lat] = c;
+        const key = Math.round(lat / cell) + '_' + Math.round(lng / cell);
+        let e = grid.get(key);
+        if (!e) {
+            e = { latSum: 0, lngSum: 0, count: 0 };
+            grid.set(key, e);
+        }
+        e.latSum += lat;
+        e.lngSum += lng;
+        e.count++;
+    }
+
+    // Logarithmic intensity scaling: a place visited 100+ times would otherwise
+    // pin `max` so high that everywhere else collapses to a single faint shade.
+    // log(count + 1) compresses that range so frequency differences spread across
+    // the whole gradient (a once-driven road stays cool; a daily haunt goes hot).
+    const heatData = [];
+    const bounds = [];
+    const intensities = [];
+    for (const e of grid.values()) {
+        const lat = e.latSum / e.count;
+        const lng = e.lngSum / e.count;
+        const intensity = Math.log(e.count + 1);
+        heatData.push([lat, lng, intensity]);
+        bounds.push([lat, lng]);
+        intensities.push(intensity);
+    }
+
+    // Scale to a high percentile of cell intensities rather than the absolute max,
+    // so a single freak outlier cell doesn't compress the rest of the map. Cells
+    // above this ceiling simply saturate to the hottest color.
+    intensities.sort((a, b) => a - b);
+    const pIdx = Math.floor(HEATMAP_SCALE_PERCENTILE * (intensities.length - 1));
+    const maxIntensity = intensities.length ? intensities[pIdx] : 1;
+
+    heatLayer = L.heatLayer(heatData, {
+        radius: HEATMAP_RADIUS_PX,
+        blur: HEATMAP_BLUR_PX,
+        minOpacity: HEATMAP_MIN_OPACITY,
+        maxZoom: HEATMAP_MAX_ZOOM,
+        max: maxIntensity || 1,
+        gradient: HEATMAP_GRADIENT
+    }).addTo(map);
+
+    if (bounds.length) {
+        try {
+            map.fitBounds(bounds);
+        } catch (err) {
+            console.log("No bounds found for heatmap, err: " + err);
+        }
+    }
+
+    let timeTaken = Date.now() - start;
+    completeTask("rendering heatmap", timeTaken);
+}
+
 function addPopup(lat, lng, feature) {
     //Add marker to the map (recommended only for small datasets, quite laggy)
     L.marker([lat, lng]).addTo(map)
@@ -415,8 +505,9 @@ function eraseLayers() {
     });
     routingControls = [];
 
-    // Remove all other layers
+    // Remove all other layers (includes the heatmap layer, if present)
     map.eachLayer((layer) => {
         layer.remove();
     });
+    heatLayer = null;
 }
