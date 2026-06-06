@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+
+{% block title %}
+<title>Everyone's Roads</title>
+{% endblock %}
+
+{% block main %}
+
+<div class="container-fluid" style="padding: var(--spacing-md, 16px);">
+    <h1>Everyone's roads</h1>
+    <p style="max-width: 70ch;">
+        The combined roads everyone on this server has driven, merged into a single anonymized shape.
+        It's one dissolved area with no names, no counts, and no dates — so no individual's movements
+        can be singled out. There are no date filters here by design (a date window could reveal where
+        someone currently is).
+    </p>
+    <p id="everyoneStatus" class="settingInfo" style="min-height: 1.2em;"></p>
+    <div id="everyoneMap" style="height: 75vh; width: 100%; border-radius: 8px; overflow: hidden;"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Dedicated map for the aggregate view (independent of the main map's globals).
+    const eMap = L.map('everyoneMap').setView([37.7749, -122.4194], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(eMap);
+
+    let everyoneLayer = null;
+
+    async function loadEveryone() {
+        const status = document.getElementById('everyoneStatus');
+        status.textContent = "Loading everyone's roads… (the first load can take a while)";
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 125000);
+            const resp = await fetch('/all-roads', { signal: controller.signal });
+            clearTimeout(timer);
+
+            if (resp.status === 401) { window.location.href = "/"; return; }
+            if (resp.status === 503) {
+                // Backend is computing the shape in the background — retry shortly.
+                status.textContent = "Still computing on the server — retrying in a few seconds…";
+                setTimeout(loadEveryone, 5000);
+                return;
+            }
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+
+            const buffer = await resp.json();
+            if (!buffer || !buffer.geometry) {
+                status.textContent = "No road data available yet.";
+                return;
+            }
+
+            if (everyoneLayer) { try { eMap.removeLayer(everyoneLayer); } catch (e) { } }
+            everyoneLayer = L.geoJSON(buffer, {
+                style: function () {
+                    return { color: "rgba(0, 128, 0, 0.7)", weight: 2, fillColor: "rgba(0, 200, 0, 0.35)", fillOpacity: 0.35 };
+                }
+            }).addTo(eMap);
+
+            try { eMap.fitBounds(everyoneLayer.getBounds()); } catch (e) { }
+            status.textContent = "";
+        } catch (err) {
+            console.error("Everyone's roads load failed:", err);
+            status.textContent = "Couldn't load everyone's roads — refresh to try again.";
+        }
+    }
+
+    loadEveryone();
+</script>
+{% endblock %}

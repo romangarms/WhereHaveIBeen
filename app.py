@@ -239,6 +239,53 @@ def get_locations():
         return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
 
 
+@app.route("/everyone")
+def everyone():
+    """
+    The "Everyone's roads" viewer — a dedicated page showing the combined,
+    anonymized roads of all users as one merged shape. Deliberately separate
+    from the main map: there are NO date/device filters here, because a date
+    window could reveal where someone currently is. Requires login.
+    """
+    if not session.get("username"):
+        return redirect("/")
+    return render_template("everyone.html")
+
+
+@app.route("/all-roads")
+def get_all_roads():
+    """
+    Proxy to the backend aggregate endpoint, using the logged-in user's session
+    credentials (mirrors /locations). Forwards NO user/device/date params — the
+    only capability this exposes is fetching the single anonymized merged shape,
+    so it cannot be used to read an individual user's data.
+    """
+    username = session.get("username")
+    password = session.get("password")
+    if not username:
+        return jsonify({"error": "Not logged in."}), 401
+
+    try:
+        # Cold computation can be slow; the backend caches and returns 503 while
+        # it warms, which we surface so the client can retry.
+        response = requests.get(
+            OWNTRACKS_URL + "/api/aggregate-roads",
+            auth=HTTPBasicAuth(username, password),
+            timeout=120,
+        )
+        if response.status_code == 503:
+            return jsonify({"error": "warming"}), 503
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.Timeout:
+        return jsonify({"error": "Aggregate computation timed out, try again."}), 504
+    except requests.HTTPError:
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 502
+    except Exception as err:
+        app.logger.error(f"AllRoads: Other error occurred: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
+
+
 @app.route("/usersdevices")
 def get_users_devices():
     try:
