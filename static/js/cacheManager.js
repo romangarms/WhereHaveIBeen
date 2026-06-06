@@ -255,15 +255,119 @@ async function clearCache(user, device) {
 }
 
 /**
+ * Cache key suffix used to store the heatmap frequency grid in a separate record
+ * from the route buffer cache (so neither clobbers the other on save).
+ */
+const HEATMAP_CACHE_SUFFIX = '_heatmap';
+
+/**
+ * Get cached heatmap grid data for a user/device combination
+ * @returns {Promise<Object|null>} The cached heatmap data or null
+ */
+async function getHeatmapCache(user, device) {
+    try {
+        await initDB();
+        const key = getCacheKey(user, device) + HEATMAP_CACHE_SUFFIX;
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(key);
+
+            request.onerror = () => {
+                console.error('Error getting heatmap cache:', request.error);
+                reject(request.error);
+            };
+
+            request.onsuccess = () => {
+                resolve(request.result ? request.result.data : null);
+            };
+        });
+    } catch (error) {
+        console.error('getHeatmapCache error:', error);
+        return null;
+    }
+}
+
+/**
+ * Store heatmap grid data in the cache
+ * @returns {Promise<boolean>} True if successful
+ */
+async function setHeatmapCache(user, device, data) {
+    try {
+        await initDB();
+        const key = getCacheKey(user, device) + HEATMAP_CACHE_SUFFIX;
+
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+
+            const record = {
+                key: key,
+                data: data,
+                savedAt: new Date().toISOString()
+            };
+
+            const request = store.put(record);
+
+            request.onerror = (event) => {
+                if (event.target.error && event.target.error.name === 'QuotaExceededError') {
+                    console.warn('Storage quota exceeded saving heatmap cache');
+                    resolve(false); // Graceful degradation
+                } else {
+                    console.error('Error setting heatmap cache:', request.error);
+                    reject(request.error);
+                }
+            };
+
+            request.onsuccess = () => {
+                console.log('Heatmap cache saved for', key);
+                resolve(true);
+            };
+        });
+    } catch (error) {
+        console.error('setHeatmapCache error:', error);
+        return false;
+    }
+}
+
+/**
+ * Clear the heatmap cache for a user/device combination
+ * @returns {Promise<boolean>} True if successful
+ */
+async function clearHeatmapCache(user, device) {
+    return clearCacheByKey(getCacheKey(user, device) + HEATMAP_CACHE_SUFFIX);
+}
+
+/**
+ * Validate that a heatmap cache record is usable with the current settings.
+ * The grid is keyed by cell indices, so a different cell size invalidates it;
+ * the scaling/visual constants are applied at render time and don't matter here.
+ * @param {Object} cache - The cached heatmap data
+ * @returns {boolean} True if the cache can be reused
+ */
+function validateHeatmapCache(cache) {
+    if (!cache || typeof cache !== 'object') return false;
+    if (!Array.isArray(cache.cells)) return false;
+    if (!cache.timestamp) return false;
+    // HEATMAP_CELL_DEG is defined in drawOnMap.js (loaded alongside this file)
+    if (typeof HEATMAP_CELL_DEG !== 'undefined' && cache.cellDeg !== HEATMAP_CELL_DEG) {
+        console.log('Heatmap cache invalid: cell size changed');
+        return false;
+    }
+    return true;
+}
+
+/**
  * Calculate the approximate size of cached data for a user/device
  * @param {string} user - The username
  * @param {string} device - The device name
  * @returns {Promise<number>} Size in bytes
  */
-async function getCacheSize(user, device) {
+async function getCacheSize(user, device, suffix = '') {
     try {
         await initDB();
-        const key = getCacheKey(user, device);
+        const key = getCacheKey(user, device) + suffix;
 
         return new Promise((resolve, reject) => {
             const transaction = db.transaction([STORE_NAME], 'readonly');

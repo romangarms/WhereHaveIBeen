@@ -96,14 +96,34 @@
 
     <div id="map"></div>
 
-    <!-- Settings Button Overlay -->
-    <button id="settingsButton" onclick="toggleSettingsPanel()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-        Settings
-    </button>
+    <!-- Settings Quick Panel (always visible: top 3 options + view more) -->
+    <div id="settingsQuickMenu">
+        <div class="quickMenuHeader">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Settings</span>
+        </div>
+        <div class="quickMenuSection">
+            <h5>View Mode</h5>
+            <div class="viewModeToggle">
+                <label>
+                    <input type="radio" name="mapMode" value="routes" onchange="setMapMode('routes')" checked />
+                    <span>Routes</span>
+                </label>
+                <label>
+                    <input type="radio" name="mapMode" value="heatmap" onchange="setMapMode('heatmap')" />
+                    <span>Heatmap</span>
+                </label>
+            </div>
+        </div>
+        <div class="quickMenuSection">
+            <button type="button" class="btn btn-primary quickMenuBtn" onclick="showSetupGuide()">OwnTracks Setup Guide</button>
+            <button type="button" class="btn btn-warning quickMenuBtn" onclick="clearCurrentCache()">Clear Cache</button>
+        </div>
+        <a href="#" class="quickMenuMore" onclick="openSettingsPanel(); return false;">View more settings &rarr;</a>
+    </div>
 
     <!-- Settings Panel Backdrop -->
     <div id="settingsPanelBackdrop" onclick="closeSettingsPanel()"></div>
@@ -243,6 +263,30 @@
         };
     }
 
+    /**
+     * View mode: 'routes' (buffers) or 'heatmap' (visitor frequency).
+     * Persisted client-side as a UI preference.
+     */
+    function getMapMode() {
+        return localStorage.getItem('whib_mapMode') || 'routes';
+    }
+
+    function setMapMode(mode) {
+        localStorage.setItem('whib_mapMode', mode);
+        syncMapModeUI();
+        resetMap();
+    }
+
+    /**
+     * Reflect the stored view mode in the quick-menu radio buttons.
+     */
+    function syncMapModeUI() {
+        const mode = getMapMode();
+        document.querySelectorAll('input[name="mapMode"]').forEach(radio => {
+            radio.checked = (radio.value === mode);
+        });
+    }
+
     async function runTasks() {
         const user = getCurrentUsername();
         const device = document.getElementById('deviceBox').value;
@@ -252,6 +296,12 @@
             await initDB();
         } catch (err) {
             console.log("IndexedDB not available, proceeding without cache:", err);
+        }
+
+        // Heatmap mode renders raw points directly and bypasses the buffer cache
+        // (the cache stores route polygons, not raw GPS points).
+        if (getMapMode() === 'heatmap') {
+            return runHeatmap(user, device);
         }
 
         // Check for valid cache
@@ -519,6 +569,119 @@
     }
 
     /**
+     * Render the visitor-frequency heatmap. Mirrors the route cache flow: on an
+     * all-time query it reuses the cached frequency grid and fetches only new GPS
+     * points since the last cached timestamp, folding their counts into the grid.
+     * Custom date ranges bypass the cache and fetch the full range.
+     */
+    async function runHeatmap(user, device) {
+        console.log("Rendering heatmap view");
+
+        setProgressBarNumSteps(3);
+
+        const loggedIn = await checkIfLoggedIn();
+        if (!loggedIn) {
+            openForm();
+            return;
+        }
+
+        closeForm();
+        updateProgressBar();
+
+        // Try to reuse a cached frequency grid (all-time queries only)
+        let cache = null;
+        let grid = null;
+        if (isAllTimeQuery()) {
+            try {
+                const cached = await getHeatmapCache(user, device);
+                if (cached && validateHeatmapCache(cached)) {
+                    cache = cached;
+                    grid = deserializeHeatGrid(cached.cells);
+                }
+            } catch (err) {
+                console.error("Error reading heatmap cache:", err);
+            }
+        }
+        usingCache = !!cache;
+
+        // Restore metrics and date inputs from cache
+        if (cache) {
+            setCachedMetrics(cache.metrics);
+            if (firstLoad) {
+                if (cache.startTimestamp) {
+                    document.getElementById('startBox').value = toLocalDatetimeInputValue(new Date(cache.startTimestamp));
+                }
+                document.getElementById('endBox').value = toLocalDatetimeInputValue(new Date());
+                firstLoad = false;
+            }
+        }
+
+        // Fetch: only new data when we have a valid cache, otherwise the full range
+        let newData;
+        if (cache) {
+            const cacheDate = new Date(cache.timestamp);
+            cacheDate.setSeconds(cacheDate.getSeconds() + 1);
+            setProgressMessage("Fetching new data...");
+            newData = await fetchLocations({ startDate: cacheDate.toISOString(), taskName: "fetching new data" });
+        } else {
+            grid = new Map();
+            setProgressMessage("Fetching location data...");
+            newData = await fetchLocations();
+        }
+
+        // Bail only when there's nothing cached and nothing fetched
+        const hasNewData = newData && !newData.isEmpty && newData.features && newData.features.length > 0;
+        if (!cache && !hasNewData) {
+            console.log("No data available");
+            setProgressMessage("No data available");
+            return;
+        }
+        updateProgressBar();
+
+        // Fold any new points into the grid and update timestamps/metrics
+        let latest = cache?.timestamp || null;
+        let earliest = cache?.startTimestamp || null;
+        if (hasNewData) {
+            buildHeatGrid(newData, grid);
+            latest = getLatestTimestamp(newData) || latest;
+            if (!earliest) earliest = getEarliestTimestamp(newData);
+            if (cache) {
+                getOwntracksStatsIncremental(newData);
+            } else {
+                getOwntracksStats(newData);
+            }
+        }
+
+        // Distance/area are buffer-derived and don't apply in heatmap mode
+        resetCoverageStats();
+
+        setProgressMessage("Building heatmap...");
+        renderHeatGrid(grid);
+
+        // Persist the merged grid (all-time queries only)
+        if (isAllTimeQuery()) {
+            const cacheData = {
+                cells: serializeHeatGrid(grid),
+                cellDeg: HEATMAP_CELL_DEG,
+                timestamp: latest,
+                startTimestamp: earliest,
+                metrics: { highestAltitude, highestVelocity }
+            };
+            try {
+                await setHeatmapCache(user, device, cacheData);
+                completeTask("heatmap cache saved", 0);
+            } catch (err) {
+                console.error("Failed to save heatmap cache:", err);
+            }
+            updateHeatmapCacheStatusUI(cacheData, user, device);
+        }
+
+        // Match routes mode: note when the view came straight from cache
+        setProgressMessage(cache && !hasNewData ? "Complete - loaded from cache" : "Complete");
+        updateProgressBar();
+    }
+
+    /**
      * Run tasks from scratch - no cache available or cache invalid
      */
     async function runTasksFresh(user, device, currentSettings) {
@@ -700,15 +863,40 @@
     }
 
     /**
-     * Clear cache for current user/device
+     * Update the cache status display for the heatmap cache (used in heatmap mode).
+     */
+    async function updateHeatmapCacheStatusUI(cacheData, user, device) {
+        const cacheStatusEl = document.getElementById('settingsCache');
+        if (!cacheStatusEl) return;
+
+        try {
+            const cacheSize = await getCacheSize(user, device, '_heatmap');
+
+            if (cacheData && cacheData.startTimestamp && cacheData.timestamp) {
+                document.getElementById('cacheDateRange').textContent =
+                    formatCacheDate(new Date(cacheData.startTimestamp)) + ' - ' + formatCacheDate(new Date(cacheData.timestamp));
+            } else {
+                document.getElementById('cacheDateRange').textContent = 'No cached data';
+            }
+
+            document.getElementById('cacheSize').textContent = formatBytes(cacheSize);
+            cacheStatusEl.style.display = 'block';
+        } catch (err) {
+            console.error("Error updating heatmap cache status UI:", err);
+        }
+    }
+
+    /**
+     * Clear cache for current user/device (both route and heatmap caches)
      */
     async function clearCurrentCache() {
         const user = getCurrentUsername();
         const device = document.getElementById('deviceBox').value;
 
-        if (confirm('Clear cached data for ' + user + '/' + device + '? This will recalculate all routes on next load.')) {
+        if (confirm('Clear cached data for ' + user + '/' + device + '? This will recalculate everything on next load.')) {
             try {
                 await clearCache(user, device);
+                await clearHeatmapCache(user, device);
                 console.log("Cache cleared");
                 document.getElementById('cacheDateRange').textContent = 'No cached data';
                 document.getElementById('cacheSize').textContent = '0 Bytes';
@@ -721,6 +909,9 @@
 
     // run on page load
     window.onload = function () {
+
+        // reflect the stored view mode in the quick-menu radios
+        syncMapModeUI();
 
         // load user settings
         getUserSettings();
