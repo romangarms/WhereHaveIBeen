@@ -213,16 +213,7 @@
             return false;
         }
 
-        // If this is the initial default values, it's an all-time query
-        const startBox = document.getElementById('startBox');
-        const endBox = document.getElementById('endBox');
-
-        if (startBox.value === '2015-01-01T00:00' && endBox.value === '2099-12-31T23:59') {
-            return true;
-        }
-
-        // Otherwise, the dates were set automatically by fetchLocations on first load
-        // which means it's the full data range (all-time)
+        // Otherwise, the dates were set automatically from data/cache (all-time)
         return true;
     }
 
@@ -238,10 +229,7 @@
      */
     function loadAllTimeData() {
         customTimeFilterApplied = false;
-        // Reset to defaults - fetchLocations will set actual data range
-        document.getElementById('startBox').value = '2015-01-01T00:00';
-        document.getElementById('endBox').value = '2099-12-31T23:59';
-        firstLoad = true; // Reset so dates get auto-populated
+        firstLoad = true; // Reset so dates get auto-populated from data/cache
         resetMap();
     }
 
@@ -319,6 +307,16 @@
         if (!cacheTimestamp) {
             console.log("No valid timestamp in cache, falling back to fresh load");
             return runTasksFresh(user, device, currentSettings);
+        }
+
+        // Update date inputs from cache data so they show actual data range
+        if (firstLoad) {
+            const startTimestamp = cacheData.driving?.startTimestamp || cacheData.flying?.startTimestamp;
+            if (startTimestamp) {
+                document.getElementById('startBox').value = toLocalDatetimeInputValue(new Date(startTimestamp));
+            }
+            document.getElementById('endBox').value = toLocalDatetimeInputValue(new Date());
+            firstLoad = false;
         }
 
         // Set initial progress bar steps (fewer for cached load)
@@ -775,12 +773,12 @@
                     <div class="date-col">
                         <h5>Start Date</h5>
                         <input type="datetime-local" class="input-group date" id="startBox" name="trip-start"
-                            value="2015-01-01T00:00" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                            value="" />
                     </div>
                     <div class="date-col">
                         <h5>End Date</h5>
                         <input type="datetime-local" class="input-group date" id="endBox" name="trip-start"
-                            value="2099-12-31T23:59" min="2015-01-01T00:00" max="2099-12-31T23:59" />
+                            value="" />
                     </div>
                     <div class="date-col date-col-apply">
                         <button type="button" class="btn btn-outline-primary apply-filters-btn" onclick="setCustomTimeFilter(); resetMap(map)">Apply</button>
