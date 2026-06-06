@@ -692,33 +692,101 @@ select {
 /* ===========================
    Settings Button & Panel
    =========================== */
-#settingsButton {
+/* Settings Quick Panel (always visible: top 3 options + view more) */
+#settingsQuickMenu {
     position: absolute;
     top: 12px;
     right: 12px;
     z-index: 1000;
+    width: 240px;
+    padding: var(--spacing-md);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.quickMenuHeader {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    background-color: var(--color-surface);
-    border: none;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md);
-    cursor: pointer;
     font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--color-text-primary);
-    transition: background-color 0.2s, box-shadow 0.2s;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
 }
 
-#settingsButton:hover {
-    background-color: var(--color-background);
-    box-shadow: var(--shadow-lg);
-}
-
-#settingsButton svg {
+.quickMenuHeader svg {
     flex-shrink: 0;
+}
+
+.quickMenuSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.quickMenuSection h5 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.viewModeToggle {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.viewModeToggle label {
+    flex: 1;
+    margin: 0;
+    cursor: pointer;
+}
+
+.viewModeToggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.viewModeToggle span {
+    display: block;
+    text-align: center;
+    padding: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.viewModeToggle input:checked + span {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+    font-weight: 600;
+}
+
+.quickMenuBtn {
+    width: 100%;
+}
+
+.quickMenuMore {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+    text-align: center;
+}
+
+.quickMenuMore:hover {
+    text-decoration: underline;
 }
 
 #settingsPanelBackdrop {
