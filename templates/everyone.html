@@ -22,13 +22,13 @@
 
 {% block scripts %}
 <script>
-    // Dedicated map for the aggregate view (independent of the main map's globals).
-    const eMap = L.map('everyoneMap').setView([37.7749, -122.4194], 6);
+    // Use the global `map` that the shared renderers in drawOnMap.js expect, so
+    // this page reuses renderCachedBuffer() (color + L.geoJSON + fitBounds) rather
+    // than reimplementing it. Same map system, different data source.
+    var map = L.map('everyoneMap').setView([37.7749, -122.4194], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(eMap);
-
-    let everyoneLayer = null;
+    }).addTo(map);
 
     async function loadEveryone() {
         const status = document.getElementById('everyoneStatus');
@@ -54,14 +54,11 @@
                 return;
             }
 
-            if (everyoneLayer) { try { eMap.removeLayer(everyoneLayer); } catch (e) { } }
-            everyoneLayer = L.geoJSON(buffer, {
-                style: function () {
-                    return { color: "rgba(0, 128, 0, 0.7)", weight: 2, fillColor: "rgba(0, 200, 0, 0.35)", fillOpacity: 0.35 };
-                }
-            }).addTo(eMap);
-
-            try { eMap.fitBounds(everyoneLayer.getBounds()); } catch (e) { }
+            // Reuse the shared buffer renderer (drawOnMap.js). "green" is already a
+            // supported color there, and it handles styling + fitBounds for us. This
+            // is a one-shot render (the 503 path returns before reaching here), so
+            // there's nothing to erase first.
+            renderCachedBuffer(buffer, "green");
             status.textContent = "";
         } catch (err) {
             console.error("Everyone's roads load failed:", err);
