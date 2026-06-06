@@ -8,14 +8,39 @@
 
 <div class="container-fluid" style="padding: var(--spacing-md, 16px);">
     <h1>Everyone's roads</h1>
-    <p style="max-width: 70ch;">
-        The combined roads everyone on this server has driven, merged into a single anonymized shape.
-        It's one dissolved area with no names, no counts, and no dates — so no individual's movements
-        can be singled out. There are no date filters here by design (a date window could reveal where
-        someone currently is).
-    </p>
+    <p>The combined roads everyone on this server has driven, merged into a single anonymized shape.</p>
     <p id="everyoneStatus" class="settingInfo" style="min-height: 1.2em;"></p>
-    <div id="everyoneMap" style="height: 75vh; width: 100%; border-radius: 8px; overflow: hidden;"></div>
+    <div id="everyoneMap" style="height: 65vh; width: 100%; border-radius: 8px; overflow: hidden;"></div>
+
+    <div id="everyoneStats" style="display: flex; flex-wrap: wrap; gap: var(--spacing-md, 16px); margin-top: var(--spacing-md, 16px);">
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Total distance travelled</h4>
+            <div id="totalDist"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Area explored</h4>
+            <div id="totalArea"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Percentage of west coast covered</h4>
+            <div id="totalAreaPct"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Highest altitude</h4>
+            <div id="highestAltitude"></div>
+        </div>
+        <div class="subPanel" style="flex: 1 1 180px;">
+            <h4>Highest velocity</h4>
+            <div id="highestVelocity"></div>
+        </div>
+    </div>
+
+    <!-- Hidden: the shared stat helpers (getBufferStats) report into the progress
+         bar via completeTask(); this keeps them happy without showing a bar. -->
+    <div id="progressBar" style="display: none;">
+        <div id="progressBarInner"></div>
+        <span id="progressBarMessage"></span>
+    </div>
 </div>
 
 {% endblock %}
@@ -23,8 +48,8 @@
 {% block scripts %}
 <script>
     // Use the global `map` that the shared renderers in drawOnMap.js expect, so
-    // this page reuses renderCachedBuffer() (color + L.geoJSON + fitBounds) rather
-    // than reimplementing it. Same map system, different data source.
+    // this page reuses renderCachedBuffer() and the stat helpers in manageData.js
+    // rather than reimplementing them. Same map system, different data source.
     var map = L.map('everyoneMap').setView([37.7749, -122.4194], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -54,11 +79,22 @@
                 return;
             }
 
-            // Reuse the shared buffer renderer (drawOnMap.js). "green" is already a
-            // supported color there, and it handles styling + fitBounds for us. This
-            // is a one-shot render (the 503 path returns before reaching here), so
-            // there's nothing to erase first.
-            renderCachedBuffer(buffer, "green");
+            // Render with the same blue buffer style as the main map (one-shot
+            // render, so nothing to erase first).
+            renderCachedBuffer(buffer, "blue");
+
+            // Reuse the main page's stat helpers + formatting. Area / % west coast
+            // come from the polygon; the population-level max speed/altitude and
+            // combined distance come from the backend in the Feature properties.
+            const props = buffer.properties || {};
+            resetCoverageStats();
+            getBufferStats(buffer);
+            setCachedMetrics({
+                highestAltitude: props.max_alt || 0,
+                highestVelocity: props.max_vel || 0,
+                totalDistance: props.distance_km || 0
+            });
+
             status.textContent = "";
         } catch (err) {
             console.error("Everyone's roads load failed:", err);
