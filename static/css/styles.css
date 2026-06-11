@@ -726,6 +726,17 @@ select {
     background-color: var(--color-background);
 }
 
+/* Accent variant: a filled, high-emphasis button (e.g. Setup Guide) */
+.mapControlBtn--accent {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-text-inverse);
+}
+
+.mapControlBtn--accent:hover {
+    background-color: var(--color-primary-dark);
+}
+
 .mapControlIcon {
     display: flex;
     align-items: center;
