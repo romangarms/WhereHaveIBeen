@@ -96,33 +96,51 @@
 
     <div id="map"></div>
 
-    <!-- Settings Quick Panel (always visible: top 3 options + view more) -->
-    <div id="settingsQuickMenu">
-        <div class="quickMenuHeader">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            <span>Settings</span>
-        </div>
-        <div class="quickMenuSection">
-            <h5>View Mode</h5>
-            <div class="viewModeToggle">
-                <label>
-                    <input type="radio" name="mapMode" value="routes" onchange="setMapMode('routes')" checked />
-                    <span>Routes</span>
-                </label>
-                <label>
-                    <input type="radio" name="mapMode" value="heatmap" onchange="setMapMode('heatmap')" />
-                    <span>Heatmap</span>
-                </label>
-            </div>
-        </div>
-        <div class="quickMenuSection">
-            <button type="button" class="btn btn-primary quickMenuBtn" onclick="showSetupGuide()">OwnTracks Setup Guide</button>
-            <button type="button" class="btn btn-warning quickMenuBtn" onclick="clearCurrentCache()">Clear Cache</button>
-        </div>
-        <a href="#" class="quickMenuMore" onclick="openSettingsPanel(); return false;">View more settings &rarr;</a>
+    <!-- Map controls (icon column; labels reveal on hover on desktop) -->
+    <div id="mapControls">
+        <button type="button" class="mapControlBtn mode-routes" id="mapModeBtn" onclick="toggleMapMode()">
+            <span class="mapControlLabel" id="mapModeLabel">Routes</span>
+            <span class="mapControlIcon">
+                <svg class="icon-routes" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+                <svg class="icon-heatmap" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+            </span>
+        </button>
+        <button type="button" class="mapControlBtn" onclick="showSetupGuide()" title="OwnTracks setup guide">
+            <span class="mapControlLabel">Setup Guide</span>
+            <span class="mapControlIcon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                </svg>
+            </span>
+        </button>
+        <button type="button" class="mapControlBtn" onclick="clearCurrentCache()" title="Clear cache">
+            <span class="mapControlLabel">Clear Cache</span>
+            <span class="mapControlIcon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+            </span>
+        </button>
+        <button type="button" class="mapControlBtn" onclick="openSettingsPanel()" title="More settings">
+            <span class="mapControlLabel">More</span>
+            <span class="mapControlIcon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </span>
+        </button>
     </div>
 
     <!-- Settings Panel Backdrop -->
@@ -278,13 +296,28 @@
     }
 
     /**
-     * Reflect the stored view mode in the quick-menu radio buttons.
+     * Flip between the two view modes from the map-control toggle button.
+     */
+    function toggleMapMode() {
+        setMapMode(getMapMode() === 'routes' ? 'heatmap' : 'routes');
+    }
+
+    /**
+     * Reflect the stored view mode on the map-control toggle button
+     * (icon + label show the currently active mode).
      */
     function syncMapModeUI() {
         const mode = getMapMode();
-        document.querySelectorAll('input[name="mapMode"]').forEach(radio => {
-            radio.checked = (radio.value === mode);
-        });
+        const btn = document.getElementById('mapModeBtn');
+        const label = document.getElementById('mapModeLabel');
+        if (!btn) return;
+
+        btn.classList.toggle('mode-heatmap', mode === 'heatmap');
+        btn.classList.toggle('mode-routes', mode === 'routes');
+        if (label) label.textContent = mode === 'heatmap' ? 'Heatmap' : 'Routes';
+        btn.title = mode === 'heatmap'
+            ? 'View mode: Heatmap (tap to switch to Routes)'
+            : 'View mode: Routes (tap to switch to Heatmap)';
     }
 
     async function runTasks() {
