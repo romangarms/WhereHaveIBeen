@@ -13,4 +13,7 @@ WORKDIR /app
 COPY --from=builder /app/.venv .venv/
 COPY . .
 EXPOSE 5000
-CMD ["/app/.venv/bin/flask", "run", "--host=0.0.0.0", "--port=5000"]
+# Run via app.py, which serves with Waitress (a production WSGI server) and
+# validates required env vars on startup. The Flask dev server (`flask run`) is
+# not suitable for production.
+CMD ["/app/.venv/bin/python", "app.py"]

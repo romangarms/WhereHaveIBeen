@@ -24,6 +24,16 @@ app = Flask(__name__)
 app.secret_key = os.getenv("WHIB_FLASK_SECRET_KEY")
 app.permanent_session_lifetime = timedelta(days=30)
 
+# The session cookie holds the user's OwnTracks credentials, so harden it:
+# - Secure: only sent over HTTPS (never leaks over a plain-HTTP request)
+# - HttpOnly: not readable from JavaScript (limits XSS credential theft)
+# - SameSite=Lax: not sent on cross-site POSTs, which blunts CSRF
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
+
 DEFAULT_OSRM_URL = os.getenv("WHIB_DEFAULT_OSRM_URL")
 OWNTRACKS_URL = os.getenv("WHIB_OWNTRACKS_URL")
 
@@ -168,21 +178,18 @@ def save_settings():
     data = request.json
     # Retrieve user inputs from the form
     circle_size = data.get('circleSize')
-    osrm_url = data.get('osrmURL')
 
     session.permanent = True
 
     # Store information in the session
     session["circle_size"] = circle_size
-    session["osrm_url"] = osrm_url
 
     return jsonify({"message": "Settings saved successfully"})
-    
+
 @app.route("/get_settings")
 def get_settings():
     return jsonify({
-        "circleSize": session.get("circle_size"),
-        "osrmURL": session.get("osrm_url")
+        "circleSize": session.get("circle_size")
     })
 
 
@@ -316,50 +323,41 @@ def get_users_devices():
         return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 500
 
 
-"""Proxy all insecure requests to the insecure server
+"""Proxy routing requests to our OSRM server.
 
-Unfortunately, the insecure server does not support HTTPS. 
-This means that we cannot make requests to it from the 
-client browser without mixed content errors
-This route makes the server handle insecure requests so 
-we don't have to
+The OSRM server only speaks HTTP, so the browser can't call it directly from an
+HTTPS page (mixed-content). This route forwards the request server-side.
+
+The OSRM target is fixed to WHIB_DEFAULT_OSRM_URL — we deliberately do NOT accept
+a client-supplied target URL. Letting the client choose the URL turned this into
+an open SSRF proxy (any caller could make the server fetch arbitrary internal or
+external URLs). Custom OSRM routers are no longer supported.
 """
 
 
 @app.route("/proxy", methods=["GET"])
 def proxy_route():
-    print("Proxying request to insecure server")
+    # Require a valid session so this isn't an open, unauthenticated proxy.
+    if not session.get("username"):
+        return jsonify({"error": "Not logged in."}), 401
 
-    osrm_url = request.args.get('osrmURL')
-    coords = request.args.get('coords') 
+    coords = request.args.get("coords")
+    if not coords:
+        return jsonify({"error": "Missing coords parameter."}), 400
+    # The client prefixes coords with a leading separator char; strip it.
     coords = coords[1:]
 
-
-    #print("coords: ", coords)
-
-    target_url = ""
-    # Construct the URL you want to forward the request to
-    if osrm_url:
-        target_url = f"{osrm_url}/route/v1/{coords}"
-        #print("using custom osrm url")
-    else:
-        target_url = f"{DEFAULT_OSRM_URL}/route/v1/{coords}"
-        #print("using default osrm url")
-
+    target_url = f"{DEFAULT_OSRM_URL}/route/v1/{coords}"
     if target_url.endswith("?overview=false"):
         target_url = target_url.replace("?overview=false", "")
-    
-    
-    #print("target_url is ", target_url)
 
-    # Forward the request to the insecure server
-    response = requests.get(target_url)
-
-    #print("response status code: ", response.status_code)
-    #print("response content: ", response.content)
-
-    # Return the response back to the client
-    return jsonify(response.json())
+    try:
+        response = requests.get(target_url, timeout=30)
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.RequestException as err:
+        app.logger.error(f"Proxy: Error contacting OSRM server: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 502
 
 
 if __name__ == "__main__":

@@ -121,17 +121,6 @@
                 </svg>
             </span>
         </button>
-        <button type="button" class="mapControlBtn" onclick="clearCurrentCache()" title="Clear cache">
-            <span class="mapControlLabel">Clear Cache</span>
-            <span class="mapControlIcon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
-            </span>
-        </button>
         <button type="button" class="mapControlBtn" onclick="openSettingsPanel()" title="More settings">
             <span class="mapControlLabel">More</span>
             <span class="mapControlIcon">
@@ -157,7 +146,6 @@
                 <button class="btn btn-primary settings-nav-apply" id="applySettingsButton" onclick="resetMap(map)">Apply</button>
                 <button class="settings-nav-btn active" onclick="scrollToSetting('settingsMap')">Map</button>
                 <button class="settings-nav-btn" onclick="scrollToSetting('settingsCache')">Cache</button>
-                <button class="settings-nav-btn" onclick="scrollToSetting('settingsRouting')">Routing</button>
                 <button class="settings-nav-btn" onclick="scrollToSetting('settingsAccount')">Account</button>
             </nav>
             <div class="settingsPanelContent">
@@ -165,6 +153,16 @@
                     <h4>Map Settings</h4>
                     <p class="settingInfo">Adjust settings about the way the routes and blue area buffer are drawn on the
                         map.</p>
+                    <h5>View Mode <span class="info-icon">i
+                            <span class="tooltip-text">Switch between Routes (your travelled paths with a blue area
+                                buffer) and Heatmap (visitor frequency by location).</span>
+                        </span></h5>
+                    <p class="settingInfo">Choose how your location history is displayed.</p>
+                    <div class="btn-group" role="group" id="mapModeToggle">
+                        <input type="button" class="btn btn-secondary" value="Routes" onclick="setMapMode('routes')" />
+                        <input type="button" class="btn btn-secondary" value="Heatmap" onclick="setMapMode('heatmap')" />
+                    </div>
+
                     <h5>Hide Route <span class="info-icon">i
                             <span class="tooltip-text">The route is only drawn when less than 500 GPS
                                 points are used. Adjust the date filters to see this!</span>
@@ -191,18 +189,6 @@
                         <strong>Storage:</strong> <span id="cacheSize">0 Bytes</span>
                     </p>
                     <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
-                </div>
-
-                <div class="subPanel" id="settingsRouting">
-                    <h4>Routing Settings</h4>
-                    <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
-                        public OSRM one.</p>
-                    <h5>Custom OSRM Router <span class="info-icon">i
-                            <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
-                        </span></h5>
-
-                    <p class="settingInfo">Default: leave blank</p>
-                    <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
                 </div>
 
                 <div class="subPanel" id="settingsAccount">
@@ -276,8 +262,7 @@
      */
     function getCurrentSettings() {
         return {
-            bufferSize: parseFloat(document.getElementById('circleSize').value) || 0.5,
-            osrmUrl: document.getElementById('osrmURL').value || ''
+            bufferSize: parseFloat(document.getElementById('circleSize').value) || 0.5
         };
     }
 
@@ -318,6 +303,16 @@
         btn.title = mode === 'heatmap'
             ? 'View mode: Heatmap (tap to switch to Routes)'
             : 'View mode: Routes (tap to switch to Heatmap)';
+
+        // Reflect the active mode on the settings-panel toggle buttons
+        const toggle = document.getElementById('mapModeToggle');
+        if (toggle) {
+            toggle.querySelectorAll('input').forEach(b => {
+                const isActive = b.value.toLowerCase() === mode;
+                b.classList.toggle('btn-primary', isActive);
+                b.classList.toggle('btn-secondary', !isActive);
+            });
+        }
     }
 
     async function runTasks() {
@@ -355,8 +350,7 @@
                         // Then validate settings match
                         cacheValid = validateCacheSettings(
                             cacheData.settings,
-                            currentSettings.bufferSize,
-                            currentSettings.osrmUrl
+                            currentSettings.bufferSize
                         );
 
                         if (!cacheValid) {
@@ -1126,7 +1120,7 @@
         const content = document.querySelector('.settingsPanelContent');
         if (!content) return;
 
-        const sectionIds = ['settingsMap', 'settingsCache', 'settingsRouting', 'settingsAccount'];
+        const sectionIds = ['settingsMap', 'settingsCache', 'settingsAccount'];
 
         content.addEventListener('scroll', function() {
             const scrollTop = content.scrollTop;
@@ -1171,8 +1165,7 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                circleSize: document.getElementById('circleSize').value,
-                osrmURL: document.getElementById('osrmURL').value
+                circleSize: document.getElementById('circleSize').value
             })
         })
             .then(response => response.json())

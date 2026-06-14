@@ -413,21 +413,14 @@ function formatBytes(bytes) {
  * Validate that cached settings match current settings
  * @param {Object} cachedSettings - Settings stored with cache
  * @param {number} currentBufferSize - Current buffer size setting
- * @param {string} currentOsrmUrl - Current OSRM URL setting
  * @returns {boolean} True if settings match
  */
-function validateCacheSettings(cachedSettings, currentBufferSize, currentOsrmUrl) {
+function validateCacheSettings(cachedSettings, currentBufferSize) {
     if (!cachedSettings) return false;
 
     // Check if buffer size matches
     if (cachedSettings.bufferSize !== currentBufferSize) {
         console.log('Cache invalid: buffer size changed from', cachedSettings.bufferSize, 'to', currentBufferSize);
-        return false;
-    }
-
-    // Check if OSRM URL matches
-    if (cachedSettings.osrmUrl !== currentOsrmUrl) {
-        console.log('Cache invalid: OSRM URL changed');
         return false;
     }
 
