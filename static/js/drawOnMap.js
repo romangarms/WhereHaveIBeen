@@ -138,21 +138,9 @@ async function calculateComplexRoute(latlngs) {
     console.log("latlngs: ", latlngs);
     let start = Date.now();
 
-    let osrmRouter = "";
-    try {
-        osrmRouter = document.getElementById('osrmURL').value;
-    } catch (err) {
-        console.log("No custom OSRM router found, using default");
-    }
-
-    if (osrmRouter != "") {
-        console.log("Using custom OSRM router: " + osrmRouter);
-    } else {
-        console.log("Using default OSRM router");
-    }
-
-    // Construct the service URL
-    const serviceUrl = `/proxy?osrmURL=${encodeURIComponent(osrmRouter)}&coords=`;
+    // Custom OSRM routers are no longer supported — the server always uses its
+    // configured OSRM URL (see /proxy). We no longer send an osrmURL param.
+    const serviceUrl = `/proxy?coords=`;
 
     console.log("Service URL: ", serviceUrl);
 

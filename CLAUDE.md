@@ -111,8 +111,11 @@ Production is hosted on Fly.io using Docker (see `fly.toml` and `Dockerfile`).
 ### Session-Based Authentication
 
 **Security Model:**
-- Credentials stored in Flask encrypted session cookie (not in database)
-- Session encrypted with `WHIB_FLASK_SECRET_KEY` environment variable
+- Credentials stored in Flask session cookie (not in database)
+- The session is **signed** (tamper-proof) with `WHIB_FLASK_SECRET_KEY`, but
+  **not encrypted** — the cookie contents are base64-readable by anyone who
+  holds the cookie. The username/password are therefore exposed to the client.
+  The cookie is set `Secure` + `HttpOnly` + `SameSite=Lax` to limit exposure.
 - Session lifetime: 30 days (`app.permanent_session_lifetime`)
 - Sign-out clears entire session (`session.clear()`)
 
