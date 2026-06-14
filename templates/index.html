@@ -193,18 +193,6 @@
                     <input type="button" class="btn btn-warning" value="Clear Cache" onclick="clearCurrentCache()" />
                 </div>
 
-                <div class="subPanel" id="settingsRouting">
-                    <h4>Routing Settings</h4>
-                    <p class="settingInfo">Change the URL of the routing engine if you host your own or want to use the
-                        public OSRM one.</p>
-                    <h5>Custom OSRM Router <span class="info-icon">i
-                            <span class="tooltip-text">Change the URL used for the OSRM router. Changing this will invalidate your cache.</span>
-                        </span></h5>
-
-                    <p class="settingInfo">Default: leave blank</p>
-                    <input type="url" class="form-control form-control-lg" id="osrmURL" value="" />
-                </div>
-
                 <div class="subPanel" id="settingsAccount">
                     <h4>Account</h4>
                     <p class="settingInfo">Need help connecting OwnTracks to your account?</p>
@@ -276,8 +264,7 @@
      */
     function getCurrentSettings() {
         return {
-            bufferSize: parseFloat(document.getElementById('circleSize').value) || 0.5,
-            osrmUrl: document.getElementById('osrmURL').value || ''
+            bufferSize: parseFloat(document.getElementById('circleSize').value) || 0.5
         };
     }
 
@@ -355,8 +342,7 @@
                         // Then validate settings match
                         cacheValid = validateCacheSettings(
                             cacheData.settings,
-                            currentSettings.bufferSize,
-                            currentSettings.osrmUrl
+                            currentSettings.bufferSize
                         );
 
                         if (!cacheValid) {
@@ -1171,8 +1157,7 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                circleSize: document.getElementById('circleSize').value,
-                osrmURL: document.getElementById('osrmURL').value
+                circleSize: document.getElementById('circleSize').value
             })
         })
             .then(response => response.json())

@@ -88,12 +88,8 @@ async function getUserSettings() {
 
         // load settings
 
-        //osrm url
-        let select = document.getElementById("osrmURL");
-        select.value = data.osrmURL;
-
         //buffer size
-        select = document.getElementById("circleSize");
+        let select = document.getElementById("circleSize");
         if (data.circleSize != null) {
             select.value = data.circleSize;
         } else {

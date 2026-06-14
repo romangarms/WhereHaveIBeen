@@ -178,21 +178,18 @@ def save_settings():
     data = request.json
     # Retrieve user inputs from the form
     circle_size = data.get('circleSize')
-    osrm_url = data.get('osrmURL')
 
     session.permanent = True
 
     # Store information in the session
     session["circle_size"] = circle_size
-    session["osrm_url"] = osrm_url
 
     return jsonify({"message": "Settings saved successfully"})
-    
+
 @app.route("/get_settings")
 def get_settings():
     return jsonify({
-        "circleSize": session.get("circle_size"),
-        "osrmURL": session.get("osrm_url")
+        "circleSize": session.get("circle_size")
     })
 
 
