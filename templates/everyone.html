@@ -12,28 +12,10 @@
     <p id="everyoneStatus" class="settingInfo" style="min-height: 1.2em;"></p>
     <div id="everyoneMap" style="height: 65vh; width: 100%; border-radius: 8px; overflow: hidden;"></div>
 
-    <div id="everyoneStats" style="display: flex; flex-wrap: wrap; gap: var(--spacing-md, 16px); margin-top: var(--spacing-md, 16px);">
-        <div class="subPanel" style="flex: 1 1 180px;">
-            <h4>Total distance travelled</h4>
-            <div id="totalDist"></div>
-        </div>
-        <div class="subPanel" style="flex: 1 1 180px;">
-            <h4>Area explored</h4>
-            <div id="totalArea"></div>
-        </div>
-        <div class="subPanel" style="flex: 1 1 180px;">
-            <h4>Percentage of west coast covered</h4>
-            <div id="totalAreaPct"></div>
-        </div>
-        <div class="subPanel" style="flex: 1 1 180px;">
-            <h4>Highest altitude</h4>
-            <div id="highestAltitude"></div>
-        </div>
-        <div class="subPanel" style="flex: 1 1 180px;">
-            <h4>Highest velocity</h4>
-            <div id="highestVelocity"></div>
-        </div>
-    </div>
+    <!-- Stats are rendered from the shared STAT_DEFINITIONS in statsPanel.js so
+         this page matches the main page's labels and info icons. -->
+    <div id="everyoneStats" style="display: flex; flex-wrap: wrap; gap: var(--spacing-md, 16px); margin-top: var(--spacing-md, 16px);"></div>
+    <script>renderStatPanels(document.getElementById("everyoneStats"), { cards: true });</script>
 
     <!-- Hidden: the shared stat helpers (getBufferStats) report into the progress
          bar via completeTask(); this keeps them happy without showing a bar. -->

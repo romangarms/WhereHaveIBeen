@@ -1034,29 +1034,10 @@
             </p>
         </div>
 
-        <div class="subPanel">
-            <h4>Total distance travelled <span class="info-icon">i
-                    <span class="tooltip-text">Note! This can be quite inaccurate over a large date range as there are
-                        some
-                        shortcuts in this calculation.</span>
-                </span> </h4>
-            <div id="totalDist"> </div>
-
-            <h4>Area explored is </h4>
-            <div id="totalArea"></div>
-
-            <h4>Percentage of west coast covered <span class="info-icon">i
-                    <span class="tooltip-text">Calculated by dividing your area explored by 863,428km, the area of
-                        Washington, Oregon, and California.</span>
-                </span> </h4>
-            <div id="totalAreaPct"></div>
-
-            <h4>Highest Altitude</h4>
-            <div id="highestAltitude"></div>
-
-            <h4>Highest Velocity</h4>
-            <div id="highestVelocity"></div>
-        </div>
+        <!-- Stats are rendered from the shared STAT_DEFINITIONS in statsPanel.js
+             so this page and Everyone's Roads stay in sync (labels + info icons). -->
+        <div class="subPanel" id="statsPanel"></div>
+        <script>renderStatPanels(document.getElementById("statsPanel"));</script>
     </div>
 </div>
 
