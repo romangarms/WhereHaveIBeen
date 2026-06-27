@@ -111,8 +111,8 @@ def register():
         username = data.get("username", "").strip() if data else ""
         password = data.get("password", "") if data else ""
 
-        if not username or not re.match(r'^[a-zA-Z0-9_-]{1,50}$', username):
-            return jsonify({"error": "Username must be 1-50 characters (letters, numbers, hyphens, underscores)."}), 400
+        if not username or not re.match(r'^[a-zA-Z0-9-]{3,20}$', username):
+            return jsonify({"error": "Username must be 3-20 characters (letters, numbers, and hyphens)."}), 400
 
         if len(password) < 12:
             return jsonify({"error": "Password must be at least 12 characters."}), 400

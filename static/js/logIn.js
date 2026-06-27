@@ -234,8 +234,8 @@ async function submitRegistration() {
         return;
     }
 
-    if (!/^[a-zA-Z0-9_-]{1,50}$/.test(username)) {
-        messageEl.textContent = "Username must be 1-50 characters (letters, numbers, hyphens, underscores).";
+    if (!/^[a-zA-Z0-9-]{3,20}$/.test(username)) {
+        messageEl.textContent = "Username must be 3-20 characters (letters, numbers, and hyphens).";
         messageEl.className = "form-message form-message-error";
         return;
     }
