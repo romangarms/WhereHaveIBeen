@@ -1002,13 +1002,13 @@
                 <div class="date-row">
                     <div class="date-col">
                         <h5>Start Date</h5>
-                        <input type="datetime-local" class="input-group date" id="startBox" name="trip-start"
-                            value="" />
+                        <input type="hidden" id="startBox" name="trip-start" value="" data-datepicker
+                            data-datepicker-align="left" />
                     </div>
                     <div class="date-col">
                         <h5>End Date</h5>
-                        <input type="datetime-local" class="input-group date" id="endBox" name="trip-start"
-                            value="" />
+                        <input type="hidden" id="endBox" name="trip-end" value="" data-datepicker
+                            data-datepicker-align="right" />
                     </div>
                     <div class="date-col date-col-apply">
                         <button type="button" class="btn btn-outline-primary apply-filters-btn" onclick="setCustomTimeFilter(); resetMap(map)">Apply</button>

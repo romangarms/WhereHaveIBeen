@@ -434,6 +434,258 @@ code {
     height: 38px;
 }
 
+/* ===========================
+   Custom Date Picker Component
+   (see static/js/datePicker.js)
+   =========================== */
+.whib-datepicker {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+/* Trigger button — styled to match .form-control inputs */
+.whib-datepicker__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    width: 100%;
+    height: 38px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    text-align: left;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.whib-datepicker__trigger:hover {
+    border-color: var(--color-primary-light);
+}
+
+.whib-datepicker__trigger[aria-expanded="true"],
+.whib-datepicker__trigger:focus-visible {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(61, 107, 168, 0.15);
+    outline: none;
+}
+
+.whib-datepicker__trigger--empty .whib-datepicker__label {
+    color: var(--color-text-muted);
+}
+
+.whib-datepicker__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.whib-datepicker__icon {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--color-text-secondary);
+}
+
+.whib-datepicker__trigger:hover .whib-datepicker__icon,
+.whib-datepicker__trigger[aria-expanded="true"] .whib-datepicker__icon {
+    color: var(--color-primary);
+}
+
+.whib-datepicker__icon svg {
+    display: block;
+}
+
+/* Popover calendar */
+.whib-datepicker__popover {
+    position: absolute;
+    top: calc(100% + var(--spacing-xs));
+    z-index: 10001;
+    width: 260px;
+    max-width: calc(100vw - var(--spacing-lg));
+    padding: var(--spacing-sm);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+
+.whib-datepicker__popover--left {
+    left: 0;
+}
+
+.whib-datepicker__popover--right {
+    right: 0;
+}
+
+.whib-datepicker__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xs);
+}
+
+.whib-datepicker__title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.whib-datepicker__nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: var(--font-size-lg);
+    line-height: 1;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.whib-datepicker__nav:hover {
+    background-color: var(--color-border-light);
+    color: var(--color-primary);
+}
+
+.whib-datepicker__weekdays,
+.whib-datepicker__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.whib-datepicker__weekday {
+    padding: var(--spacing-xs) 0;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-align: center;
+}
+
+.whib-datepicker__day {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-primary);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.whib-datepicker__day:hover {
+    background-color: var(--color-border-light);
+}
+
+.whib-datepicker__day--blank {
+    cursor: default;
+}
+
+.whib-datepicker__day--blank:hover {
+    background: transparent;
+}
+
+.whib-datepicker__day--today {
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.whib-datepicker__day--selected,
+.whib-datepicker__day--selected:hover {
+    color: var(--color-text-inverse);
+    background-color: var(--color-primary);
+}
+
+/* Time row */
+.whib-datepicker__time {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--color-border-light);
+}
+
+.whib-datepicker__time-label {
+    flex: 0 0 auto;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+/* Single large time field — font-size >= 16px keeps iOS from zooming on focus. */
+.whib-datepicker .whib-datepicker__time-input {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    margin-bottom: 0;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-base);
+    text-align: center;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.whib-datepicker__time-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(61, 107, 168, 0.15);
+    outline: none;
+}
+
+/* Footer actions */
+.whib-datepicker__footer {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.whib-datepicker__action {
+    flex: 1;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.whib-datepicker__action--muted {
+    color: var(--color-text-secondary);
+    background-color: transparent;
+    border: 1px solid var(--color-border);
+}
+
+.whib-datepicker__action--muted:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary-light);
+}
+
+.whib-datepicker__action--primary {
+    color: var(--color-text-inverse);
+    background-color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+}
+
+.whib-datepicker__action--primary:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+}
+
 /* Time preset buttons: horizontal row */
 .time-presets {
     display: flex;
