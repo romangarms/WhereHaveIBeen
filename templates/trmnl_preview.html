@@ -52,7 +52,8 @@
           <div class="map-area">
             <div class="tiles">
               {% for t in tiles %}
-              <img src="{{ t.url }}" style="left: {{ t.left }}px; top: {{ t.top }}px;" alt="">
+              <img src="{{ t.url }}" referrerpolicy="no-referrer-when-downgrade"
+                   style="left: {{ t.left }}px; top: {{ t.top }}px;" alt="">
               {% endfor %}
             </div>
             <svg viewBox="0 0 800 400" width="800" height="400" preserveAspectRatio="xMidYMid meet">

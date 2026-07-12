@@ -6,6 +6,7 @@
         <div style="position:absolute; inset:0; filter:grayscale(1) contrast(1.1);">
           {% for t in tiles %}
           <img class="image" src="{{ t.url }}" width="256" height="256"
+               referrerpolicy="no-referrer-when-downgrade"
                style="position:absolute; left:{{ t.left }}px; top:{{ t.top }}px;" />
           {% endfor %}
         </div>
