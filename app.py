@@ -15,6 +15,8 @@ import pytz
 import re
 from dotenv import load_dotenv
 
+from trmnl import trmnl_bp
+
 INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 
 load_dotenv()
@@ -36,6 +38,9 @@ app.config.update(
 
 DEFAULT_OSRM_URL = os.getenv("WHIB_DEFAULT_OSRM_URL")
 OWNTRACKS_URL = os.getenv("WHIB_OWNTRACKS_URL")
+
+# TRMNL e-ink display endpoints (/trmnl, /trmnl/preview) live in the trmnl package.
+app.register_blueprint(trmnl_bp)
 
 
 @app.route("/")

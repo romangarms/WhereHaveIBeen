@@ -1,0 +1,65 @@
+<div class="screen">
+  <div class="view view--full">
+    <div style="display:flex; flex-direction:column; height:480px; width:800px;">
+
+      <div style="position:relative; height:400px; width:800px; overflow:hidden;">
+        <div style="position:absolute; inset:0; filter:grayscale(1) contrast(1.1);">
+          {% for t in tiles %}
+          <img class="image" src="{{ t.url }}" width="256" height="256"
+               style="position:absolute; left:{{ t.left }}px; top:{{ t.top }}px;" />
+          {% endfor %}
+        </div>
+
+        <svg viewBox="0 0 800 400" width="800" height="400"
+             preserveAspectRatio="xMidYMid meet"
+             style="position:absolute; inset:0; width:800px; height:400px;">
+          {% if has_data %}
+          <path d="{{ map_d }}" fill="none" stroke="white" stroke-width="5"
+                stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="{{ map_d }}" fill="none" stroke="black" stroke-width="2.5"
+                stroke-linejoin="round" stroke-linecap="round"/>
+          {% endif %}
+        </svg>
+
+        <div style="position:absolute; top:10px; left:10px;
+                    background:#fff; border:2px solid #000; padding:4px 8px;">
+          <div style="font-weight:700; font-size:20px; line-height:1.1;">Roads driven</div>
+          <div style="font-size:14px;">Last {{ days }} days · {{ date_range }}</div>
+        </div>
+
+        {% unless has_data %}
+        <div style="position:absolute; top:50%; left:0; width:100%; text-align:center;
+                    transform:translateY(-50%); font-size:18px; background:#fff; padding:8px 0;">
+          No trips in the last {{ days }} days
+        </div>
+        {% endunless %}
+
+        {% if tiles.size > 0 %}
+        <div style="position:absolute; right:2px; bottom:2px; font-size:9px;
+                    background:rgba(255,255,255,0.75); padding:0 3px;">© OpenStreetMap</div>
+        {% endif %}
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-around;
+                  height:80px; border-top:3px solid black;">
+        <div style="text-align:center;">
+          <div style="font-weight:700; font-size:26px; line-height:1;">{{ distance_fmt }}</div>
+          <div style="font-size:13px;">Distance ({{ distance_km_fmt }})</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-weight:700; font-size:26px; line-height:1;">{{ active_days_fmt }}</div>
+          <div style="font-size:13px;">Active days</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-weight:700; font-size:26px; line-height:1;">{{ top_speed_fmt }}</div>
+          <div style="font-size:13px;">Top speed</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-weight:700; font-size:26px; line-height:1;">{{ max_alt_fmt }}</div>
+          <div style="font-size:13px;">Peak altitude</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

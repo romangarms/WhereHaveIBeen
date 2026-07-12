@@ -172,6 +172,30 @@ These endpoints require a valid session and proxy requests to the user's OwnTrac
 - `osrmURL` - Custom OSRM server URL (optional, falls back to `WHIB_DEFAULT_OSRM_URL`)
 - `coords` - Coordinate string for OSRM routing API
 
+#### TRMNL e-ink display
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/trmnl` | GET | Compact JSON of the last N days of driving for a TRMNL 800×480 e-ink screen |
+| `/trmnl/preview` | GET | WYSIWYG HTML render of that screen for local browser testing |
+
+These accept **HTTP Basic auth** (so the TRMNL server can poll them — it can't
+hold a session) and fall back to the **session cookie** (so a logged-in browser
+can hit `/trmnl/preview` directly). Credentials are passed straight through to
+OwnTracks, scoped to that user; an unauthenticated request returns `401` with a
+`WWW-Authenticate` header so browsers prompt for login. All map projection (Web
+Mercator, fitted + decimated to the screen), path building, and stats are
+computed server-side. `/trmnl` returns JSON consumed by `trmnl/markup.liquid`;
+`/trmnl/preview` renders `templates/trmnl_preview.html`. See `trmnl/README.md`.
+
+The basemap uses the same OpenStreetMap tiles as the main map, positioned
+server-side and grayscaled in the markup for e-ink.
+
+**Query Parameters:** `days` (default 30), `tz` (IANA, default
+`America/Los_Angeles`), `device` (optional filter), `basemap` (`osm` default, or
+`none` for line-only), `w`/`h` (map area px, default 800×400 — must match the SVG
+`viewBox` in the markup).
+
 ### Routing Strategy
 
 Routes are calculated differently based on GPS point count:
