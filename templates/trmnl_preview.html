@@ -39,9 +39,9 @@
 </head>
 <body>
   <div class="caption">
-    Live preview of the TRMNL screen · last {{ days }} days · {{ point_count }} GPS points<br>
-    Change the window with <code>?days=7</code>, timezone with <code>?tz=Europe/London</code>,
-    or a single device with <code>?device=phone</code>
+    Live preview of the TRMNL screen · {{ range_label }} · {{ point_count }} GPS points<br>
+    Change the window with <code>?days=7</code> (or <code>?days=all</code>), timezone with
+    <code>?tz=Europe/London</code>, or a single device with <code>?device=phone</code>
   </div>
 
   <div class="device">
@@ -67,11 +67,11 @@
 
             <div class="head">
               <div class="t">Roads driven</div>
-              <div class="s">Last {{ days }} days · {{ date_range }}</div>
+              <div class="s">{{ range_label }}{% if date_range %} · {{ date_range }}{% endif %}</div>
             </div>
 
             {% if not has_data %}
-            <div class="empty">No trips in the last {{ days }} days</div>
+            <div class="empty">No trips · {{ range_label }}</div>
             {% endif %}
 
             {% if tiles %}<div class="attrib">© OpenStreetMap</div>{% endif %}

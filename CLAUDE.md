@@ -189,7 +189,10 @@ computed server-side. `/trmnl` returns JSON consumed by `trmnl/markup.liquid`;
 `/trmnl/preview` renders `templates/trmnl_preview.html`. See `trmnl/README.md`.
 
 The basemap uses the same OpenStreetMap tiles as the main map, positioned
-server-side and grayscaled in the markup for e-ink.
+server-side and grayscaled in the markup for e-ink. Tiles are served through a
+`/trmnl/tile/<z>/<x>/<y>.png` proxy (in the blueprint) that adds the `Referer` /
+`User-Agent` OSM requires — TRMNL's renderer sends neither, so a direct OSM fetch
+is blocked. The proxy validates coordinates and caches tiles in memory.
 
 **Query Parameters:** `days` (default 30), `tz` (IANA, default
 `America/Los_Angeles`), `device` (optional filter), `basemap` (`osm` default, or

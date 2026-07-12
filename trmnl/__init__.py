@@ -16,12 +16,14 @@ place — keeping the polling payload tiny and the render razor-sharp on e-ink.
 import math
 import os
 from datetime import datetime, timedelta
+from functools import lru_cache
 
 import pytz
 import requests
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
+    Response,
     current_app,
     jsonify,
     render_template,
@@ -47,7 +49,27 @@ TRMNL_MAX_ACCURACY_M = 100
 TRMNL_MIN_PIXEL_GAP = 1.2
 # Tightest zoom we'll snap to; keeps a little basemap context around short trips.
 TRMNL_MAX_ZOOM = 15
+# "All time" lower bound — earlier than any OwnTracks data could plausibly exist.
+TRMNL_ALL_TIME_START = datetime(2010, 1, 1, tzinfo=pytz.UTC)
 TILE_SIZE = 256
+# OSM's tile policy requires an identifying User-Agent and a Referer. We send
+# both from the server-side proxy so callers (TRMNL) don't have to.
+OSM_TILE_UA = "WhereHaveIBeen/1.0 (+https://github.com/romangarms/wherehaveibeen)"
+OSM_TILE_REFERER = "https://wherehaveibeen.fly.dev/"
+
+
+@lru_cache(maxsize=1024)
+def _fetch_osm_tile(z, x, y):
+    """Fetch one OSM tile with the headers OSM requires. Cached in memory; raises
+    on failure so failures aren't cached. Only reached with validated coords."""
+    sub = "abc"[(x + y) % 3]
+    response = requests.get(
+        f"https://{sub}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        headers={"User-Agent": OSM_TILE_UA, "Referer": OSM_TILE_REFERER},
+        timeout=15,
+    )
+    response.raise_for_status()
+    return response.content
 
 
 def _haversine_km(lat1, lon1, lat2, lon2):
@@ -106,6 +128,8 @@ def _trmnl_extract(features):
         "top_speed": top_speed,
         "max_alt": max_alt,
         "active_days": len(active_days),
+        "first_day": min(active_days) if active_days else None,
+        "last_day": max(active_days) if active_days else None,
         "point_count": sum(len(s) for s in kept),
     }
     return kept, stats
@@ -120,13 +144,14 @@ def _trmnl_world_px(lat, lon, zoom):
     return x, y
 
 
-def _trmnl_build_tilemap(kept, width, height, with_basemap=True, padding=24):
+def _trmnl_build_tilemap(kept, width, height, tile_base, with_basemap=True, padding=24):
     """Fit the track to a slippy-map zoom, then return the basemap tiles and the
     SVG path — both in the same width x height pixel space so they line up.
 
-    Uses the same OpenStreetMap tiles as the main map; a grayscale filter in the
-    markup makes them e-ink friendly. Returns (tiles, path_d, zoom); tiles is a
-    list of {url, left, top} (empty when with_basemap is False).
+    Tiles are served through our own /trmnl/tile proxy (tile_base) rather than
+    OSM directly, because TRMNL's renderer sends no Referer and OSM blocks that.
+    Returns (tiles, path_d, zoom); tiles is a list of {url, left, top} (empty when
+    with_basemap is False).
     """
     pts = [pt for seg in kept for pt in seg]
     if not pts:
@@ -160,9 +185,8 @@ def _trmnl_build_tilemap(kept, width, height, with_basemap=True, padding=24):
                 if ty < 0 or ty >= n_tiles:
                     continue
                 wx = tx % n_tiles  # wrap across the antimeridian
-                sub = "abc"[(tx + ty) % 3]  # spread load across OSM subdomains
                 tiles.append({
-                    "url": f"https://{sub}.tile.openstreetmap.org/{zoom}/{wx}/{ty}.png",
+                    "url": f"{tile_base}{zoom}/{wx}/{ty}.png",
                     "left": round(tx * TILE_SIZE - origin_x, 1),
                     "top": round(ty * TILE_SIZE - origin_y, 1),
                 })
@@ -280,10 +304,17 @@ def _trmnl_payload(username, password):
     Returns (payload_dict, None) on success, or (None, (json_body, status)) on
     failure so the caller can return the error verbatim.
     """
-    try:
-        days = int(request.args.get("days", 30))
-    except ValueError:
-        days = 30
+    # TRMNL form fields pass their value straight into ?days= via the polling URL.
+    # "all"/"0"/empty means the whole history; anything else is a day count.
+    days_raw = (request.args.get("days") or "30").strip().lower()
+    all_time = days_raw in ("all", "0", "")
+    if all_time:
+        days = None
+    else:
+        try:
+            days = int(days_raw)
+        except ValueError:
+            days = 30
     try:
         width = int(request.args.get("w", 800))
         height = int(request.args.get("h", 400))
@@ -291,8 +322,8 @@ def _trmnl_payload(username, password):
         width, height = 800, 400
 
     now = datetime.now(pytz.UTC)
-    start = now - timedelta(days=days)
     end = now
+    start = TRMNL_ALL_TIME_START if all_time else now - timedelta(days=days)
 
     try:
         requested = request.args.get("device")
@@ -304,7 +335,8 @@ def _trmnl_payload(username, password):
         # If nothing was logged in the wall-clock window (e.g. you haven't driven
         # recently, or the server clock is ahead of the data), fall back to the
         # last `days` of whatever data actually exists so the display stays useful.
-        if not features:
+        # All-time already reaches back far enough that there's nothing to recover.
+        if not all_time and not features:
             latest = _trmnl_latest_timestamp(username, password)
             if latest and latest < start:
                 end = latest
@@ -317,9 +349,15 @@ def _trmnl_payload(username, password):
         return None, ({"error": INTERNAL_ERROR_MESSAGE}, 502)
 
     with_basemap = request.args.get("basemap", "osm").lower() != "none"
+    # Absolute URL to our own tile proxy so TRMNL fetches tiles from us, not OSM.
+    # Force https off-localhost: behind Fly's TLS terminator the WSGI scheme is
+    # http, but the plugin renders over https and would block a mixed-content tile.
+    host = request.host
+    scheme = "http" if host.split(":")[0] in ("localhost", "127.0.0.1") else "https"
+    tile_base = f"{scheme}://{host}/trmnl/tile/"
 
     kept, stats = _trmnl_extract(features)
-    tiles, map_d, zoom = _trmnl_build_tilemap(kept, width, height, with_basemap)
+    tiles, map_d, zoom = _trmnl_build_tilemap(kept, width, height, tile_base, with_basemap)
 
     distance_km = stats["distance_km"]
     distance_mi = distance_km / 1.609
@@ -333,6 +371,19 @@ def _trmnl_payload(username, password):
     local_end = end.astimezone(tz)
     local_start = start.astimezone(tz)
 
+    if all_time:
+        range_label = "All time"
+        # Label the real data extent, not the 2010 lower bound we queried from.
+        if stats["first_day"] and stats["last_day"]:
+            first = datetime.strptime(stats["first_day"], "%Y-%m-%d")
+            last = datetime.strptime(stats["last_day"], "%Y-%m-%d")
+            date_range = f"{first.strftime('%b %-d, %Y')} – {last.strftime('%b %-d, %Y')}"
+        else:
+            date_range = ""
+    else:
+        range_label = "Last 24 hours" if days == 1 else f"Last {days} days"
+        date_range = f"{local_start.strftime('%b %-d')} – {local_end.strftime('%b %-d')}"
+
     return {
         "map_d": map_d,
         "tiles": tiles,
@@ -340,8 +391,9 @@ def _trmnl_payload(username, password):
         "width": width,
         "height": height,
         "has_data": bool(map_d),
-        "days": days,
-        "date_range": f"{local_start.strftime('%b %-d')} – {local_end.strftime('%b %-d')}",
+        "days": "all" if all_time else days,
+        "range_label": range_label,
+        "date_range": date_range,
         "distance_fmt": f"{distance_mi:,.0f} mi",
         "distance_km_fmt": f"{distance_km:,.0f} km",
         "top_speed_fmt": f"{top_speed_mph:,.0f} mph",
@@ -433,6 +485,22 @@ def trmnl():
         body, status = error
         return jsonify(body), status
     return jsonify(payload)
+
+
+@trmnl_bp.route("/trmnl/tile/<int:z>/<int:x>/<int:y>.png")
+def trmnl_tile(z, x, y):
+    """Proxy an OSM basemap tile. TRMNL's renderer sends no Referer (which OSM
+    blocks), so it fetches tiles from here and we add the required headers. Coords
+    are strictly validated so this can only ever serve public OSM map tiles."""
+    if not (0 <= z <= 19) or not (0 <= x < 2 ** z) or not (0 <= y < 2 ** z):
+        return jsonify({"error": "Invalid tile coordinates."}), 404
+    try:
+        data = _fetch_osm_tile(z, x, y)
+    except requests.RequestException as err:
+        current_app.logger.warning(f"TRMNL: OSM tile {z}/{x}/{y} failed: {err}")
+        return jsonify({"error": "Tile unavailable."}), 502
+    return Response(data, mimetype="image/png",
+                    headers={"Cache-Control": "public, max-age=604800"})
 
 
 @trmnl_bp.route("/trmnl/preview")

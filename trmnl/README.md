@@ -11,10 +11,11 @@ in `markup.liquid` lays the tiles down (grayscaled for e-ink) and draws the rout
 (white-cased black line) on top. The route is a vector `<path>`, so it stays
 razor-sharp.
 
-> The basemap uses the same OpenStreetMap tiles as the main map, fetched by
-> TRMNL's renderer at draw time — no map data passes through this app. For a pure
-> line-only screen, pass `?basemap=none` (or drop the tile `{% for %}` block from
-> `markup.liquid`).
+> The basemap uses the same OpenStreetMap tiles as the main map, but served
+> through this app's own `/trmnl/tile/<z>/<x>/<y>.png` proxy. OSM requires a
+> `Referer`/`User-Agent` on tile requests and TRMNL's renderer sends neither, so
+> the proxy adds them and caches tiles in memory. For a pure line-only screen,
+> pass `?basemap=none` (or drop the tile `{% for %}` block from `markup.liquid`).
 
 ![preview](preview.png)
 
@@ -100,13 +101,50 @@ stats render. Save.
 > reference. Top-level names (`{{ map_d }}`, `{{ distance_fmt }}`, …) are the
 > default for the Polling strategy.
 
+## 5. (Optional) Pick the range from the plugin settings
+
+Rather than hard-coding the window in the Polling URL, you can expose a dropdown
+on the plugin's settings page so you can switch between "Last 7 days", "Last 30
+days", "All time", etc. without editing the plugin.
+
+TRMNL's **Form Fields** define custom variables that get interpolated into the
+Polling URL. Paste this into the **Form Fields** box:
+
+```yaml
+- keyname: lookback_period
+  field_type: select
+  name: Look-back window
+  default: "30"
+  options:
+    - "7"
+    - "14"
+    - "30"
+    - "90"
+    - "all"
+```
+
+The selected option is substituted **verbatim** into the URL — TRMNL does not
+URL-encode it and (in the current editor) does not split a `Label:Value` pair.
+So option values must be URL-safe: **no spaces and no colons**, which rules out
+pretty labels like `Last 7 days`. Keep them as bare `days` values (`7`, `30`,
+`all`, …). Then reference the field in the **Polling URL** with `##{{ keyname }}`:
+
+```
+https://<your-domain>/trmnl?days=##{{ lookback_period }}
+```
+
+The endpoint accepts `all` (or `0`) for the whole history; for "All time" the
+header shows the actual span of your data (e.g. `Mar 3, 2023 – Jul 11, 2026`)
+instead of a day count. Add or remove options freely — any positive integer
+works as a `days` value.
+
 ## Endpoint options (query params)
 
 All optional:
 
 | Param | Default | Meaning |
 |-------|---------|---------|
-| `days` | `30` | Look-back window in days |
+| `days` | `30` | Look-back window in days. Pass `all` (or `0`) for the whole history |
 | `tz` | `America/Los_Angeles` | IANA timezone for the date range label |
 | `device` | *(auto)* | Restrict to one OwnTracks device. Omitted, it auto-detects and merges all your devices (the recorder requires a device, so this is discovered via `/api/0/last`) |
 | `basemap` | `osm` | OpenStreetMap basemap behind the route. Pass `none` for a line-only screen |
@@ -126,7 +164,8 @@ https://<your-domain>/trmnl?days=14&tz=Europe/London&device=phone
   "has_data":       true,
   "width":          800,
   "height":         400,
-  "days":           30,
+  "days":           30,                     // or "all"
+  "range_label":    "Last 30 days",         // "All time" when days=all
   "date_range":     "Jun 11 – Jul 11",
   "distance_fmt":   "188 mi",
   "distance_km_fmt":"302 km",
