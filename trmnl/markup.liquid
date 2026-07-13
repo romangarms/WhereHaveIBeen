@@ -25,7 +25,7 @@
         <div style="position:absolute; top:10px; left:10px;
                     background:#fff; border:2px solid #000; padding:4px 8px;">
           <div style="font-weight:700; font-size:20px; line-height:1.1;">Roads driven</div>
-          <div style="font-size:14px;">{{ range_label }}{% if date_range != "" %} · {{ date_range }}{% endif %}</div>
+          <div style="font-size:14px;">{{ range_label }}{% if date_range != blank %} · {{ date_range }}{% endif %}</div>
         </div>
 
         {% unless has_data %}

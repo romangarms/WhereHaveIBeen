@@ -127,16 +127,30 @@ The selected option is substituted **verbatim** into the URL — TRMNL does not
 URL-encode it and (in the current editor) does not split a `Label:Value` pair.
 So option values must be URL-safe: **no spaces and no colons**, which rules out
 pretty labels like `Last 7 days`. Keep them as bare `days` values (`7`, `30`,
-`all`, …). Then reference the field in the **Polling URL** with `##{{ keyname }}`:
+`all`, …). Then reference the field in the **Polling URL** with plain Liquid
+braces — **no `##` prefix**, spaces inside the braces:
 
 ```
-https://<your-domain>/trmnl?days=##{{ lookback_period }}
+https://<your-domain>/trmnl?days={{ lookback_period }}
 ```
+
+> Get this exact — it is the one thing that repeatedly breaks. The form-field
+> reference in a polling URL is `{{ keyname }}`, **not** `##{{ keyname }}`. The
+> `##` prefix (shown on some TRMNL help pages) leaves the placeholder
+> un-substituted, so TRMNL sends the literal `{{…}}` text and the fetch fails,
+> rendering a blank screen. The endpoint is also defensive: an unset, stale, or
+> un-substituted value falls back to a **30-day window** rather than erroring.
 
 The endpoint accepts `all` (or `0`) for the whole history; for "All time" the
 header shows the actual span of your data (e.g. `Mar 3, 2023 – Jul 11, 2026`)
 instead of a day count. Add or remove options freely — any positive integer
 works as a `days` value.
+
+> **If it renders blank** (ghost "Roads driven ·" header, empty stats), the poll
+> is failing and TRMNL is rendering with no data — it is *not* your endpoint. To
+> confirm, temporarily set the Polling URL to a plain `https://<your-domain>/trmnl`
+> (no query at all): it defaults to 30 days and must render. If that works, the
+> problem is purely the `##{{…}}` interpolation above.
 
 ## Endpoint options (query params)
 
@@ -144,7 +158,7 @@ All optional:
 
 | Param | Default | Meaning |
 |-------|---------|---------|
-| `days` | `30` | Look-back window in days. Pass `all` (or `0`) for the whole history |
+| `days` | `30` | Look-back window in days. Pass `all` (or `0`) for the whole history. Anything unset, empty, or unparseable falls back to `30` |
 | `tz` | `America/Los_Angeles` | IANA timezone for the date range label |
 | `device` | *(auto)* | Restrict to one OwnTracks device. Omitted, it auto-detects and merges all your devices (the recorder requires a device, so this is discovered via `/api/0/last`) |
 | `basemap` | `osm` | OpenStreetMap basemap behind the route. Pass `none` for a line-only screen |

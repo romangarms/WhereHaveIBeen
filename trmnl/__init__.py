@@ -304,17 +304,18 @@ def _trmnl_payload(username, password):
     Returns (payload_dict, None) on success, or (None, (json_body, status)) on
     failure so the caller can return the error verbatim.
     """
-    # TRMNL form fields pass their value straight into ?days= via the polling URL.
-    # "all"/"0"/empty means the whole history; anything else is a day count.
-    days_raw = (request.args.get("days") or "30").strip().lower()
-    all_time = days_raw in ("all", "0", "")
-    if all_time:
-        days = None
+    # TRMNL substitutes the form-field value into ?days= via the polling URL. Be
+    # defensive: an un-substituted placeholder (e.g. "##{{lookback_period}}"), a
+    # stale value, or an empty field must never blank the screen — strip to
+    # alphanumerics and fall back to a 30-day window. Only an explicit "all"/"0"
+    # means the whole history.
+    days_token = "".join(c for c in request.args.get("days", "") if c.isalnum()).lower()
+    if days_token in ("all", "0"):
+        all_time, days = True, None
+    elif days_token.isdigit():
+        all_time, days = False, int(days_token)
     else:
-        try:
-            days = int(days_raw)
-        except ValueError:
-            days = 30
+        all_time, days = False, 30
     try:
         width = int(request.args.get("w", 800))
         height = int(request.args.get("h", 400))
