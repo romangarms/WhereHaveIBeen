@@ -8,8 +8,13 @@ OwnTracks history, fits the GPS track to a slippy-map zoom, and returns the
 positioned **OpenStreetMap basemap tiles** plus an SVG path for the route and
 exact stats (distance, active days, top speed, peak altitude). The TRMNL markup
 in `markup.liquid` lays the tiles down (grayscaled for e-ink) and draws the route
-(white-cased black line) on top. The route is a vector `<path>`, so it stays
-razor-sharp.
+(white-cased black line) on top, with any flight legs as a dashed line. The routes
+are vector `<path>`s, so they stay razor-sharp.
+
+> Driving and flying are split the same way the main map does it — a step counts
+> as flying when its speed tops 200 km/h or it jumps more than 100 km. Flight legs
+> are drawn (dashed, connected to the ground track) but excluded from the distance
+> total.
 
 > The basemap uses the same OpenStreetMap tiles as the main map, but served
 > through this app's own `/trmnl/tile/<z>/<x>/<y>.png` proxy. OSM requires a
@@ -174,7 +179,8 @@ https://<your-domain>/trmnl?days=14&tz=Europe/London&device=phone
 
 ```jsonc
 {
-  "map_d":          "M120 40 L121 42 ...",  // SVG path, all track segments
+  "map_d":          "M120 40 L121 42 ...",  // SVG path, driving segments (solid line)
+  "fly_d":          "M120 40 L600 300 ...", // SVG path, flight segments (dashed line)
   "has_data":       true,
   "width":          800,
   "height":         400,

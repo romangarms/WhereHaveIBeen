@@ -39,9 +39,12 @@ INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 
 trmnl_bp = Blueprint("trmnl", __name__)
 
-# Break the track into a new subpath when consecutive points are farther apart
-# than this (km): a flight or GPS teleport, not a road we drove.
+# Treat a step as flying (not driving) when consecutive points are farther apart
+# than this (km) — a hop no road accounts for.
 TRMNL_SEGMENT_BREAK_KM = 100
+# ...or when the recorded speed exceeds this (km/h). Mirrors the main map's
+# driving/flying split so short, dense in-air points are still caught as flight.
+TRMNL_FLYING_SPEED_KMH = 200
 # OwnTracks points with accuracy worse than this (metres) are too noisy to draw.
 TRMNL_MAX_ACCURACY_M = 100
 # Drop projected points closer than this (screen px) to the last kept one — at
@@ -84,11 +87,25 @@ def _haversine_km(lat1, lon1, lat2, lon2):
 
 
 def _trmnl_extract(features):
-    """Filter noisy points, split the track into subpaths across big jumps, and
-    accumulate exact stats. Returns (kept_segments, stats) independent of any
-    projection — projection happens later so it can be tile-aligned."""
-    kept = []  # list of segments; each segment is a list of (lat, lon)
+    """Filter noisy points, split the track into driving vs flying subpaths, and
+    accumulate exact stats. Returns (drive_segments, fly_segments, stats),
+    independent of any projection — projection happens later so it can be
+    tile-aligned.
+
+    A step is flying when its speed exceeds TRMNL_FLYING_SPEED_KMH or it spans
+    more than TRMNL_SEGMENT_BREAK_KM; everything else is driving. A mode change
+    splits the track, but the boundary point is shared by both subpaths so the
+    drawn line stays connected across the transition. Only driving steps count
+    toward distance."""
+    drive_segs = []
+    fly_segs = []
+
+    def flush(seg, mode):
+        if len(seg) > 1:
+            (fly_segs if mode == "fly" else drive_segs).append(seg)
+
     segment = []
+    seg_mode = None
     prev = None
     distance_km = 0.0
     top_speed = 0.0
@@ -103,25 +120,34 @@ def _trmnl_extract(features):
             continue
         lon, lat = coords[0], coords[1]
 
-        top_speed = max(top_speed, props.get("vel", 0) or 0)
+        vel = props.get("vel", 0) or 0
+        top_speed = max(top_speed, vel)
         max_alt = max(max_alt, props.get("alt", 0) or 0)
         tst = props.get("isotst")
         if tst:
             active_days.add(tst[:10])
 
-        if prev is not None:
-            step = _haversine_km(prev[0], prev[1], lat, lon)
-            if step > TRMNL_SEGMENT_BREAK_KM:
-                if len(segment) > 1:
-                    kept.append(segment)
-                segment = []
-            else:
-                distance_km += step
+        if prev is None:
+            segment = [(lat, lon)]
+            prev = (lat, lon)
+            continue
+
+        step = _haversine_km(prev[0], prev[1], lat, lon)
+        flying = vel > TRMNL_FLYING_SPEED_KMH or step > TRMNL_SEGMENT_BREAK_KM
+        mode = "fly" if flying else "drive"
+        if not flying:
+            distance_km += step
+
+        if seg_mode is None:
+            seg_mode = mode
+        elif mode != seg_mode:
+            flush(segment, seg_mode)
+            segment = [prev]  # share the boundary point so the track stays connected
+            seg_mode = mode
         segment.append((lat, lon))
         prev = (lat, lon)
 
-    if len(segment) > 1:
-        kept.append(segment)
+    flush(segment, seg_mode)
 
     stats = {
         "distance_km": distance_km,
@@ -130,9 +156,9 @@ def _trmnl_extract(features):
         "active_days": len(active_days),
         "first_day": min(active_days) if active_days else None,
         "last_day": max(active_days) if active_days else None,
-        "point_count": sum(len(s) for s in kept),
+        "point_count": sum(len(s) for s in drive_segs) + sum(len(s) for s in fly_segs),
     }
-    return kept, stats
+    return drive_segs, fly_segs, stats
 
 
 def _trmnl_world_px(lat, lon, zoom):
@@ -144,18 +170,39 @@ def _trmnl_world_px(lat, lon, zoom):
     return x, y
 
 
-def _trmnl_build_tilemap(kept, width, height, tile_base, with_basemap=True, padding=24):
-    """Fit the track to a slippy-map zoom, then return the basemap tiles and the
-    SVG path — both in the same width x height pixel space so they line up.
+def _segments_to_path(segments, origin_x, origin_y, zoom):
+    """Project segments to the viewport pixel space and join them into one SVG
+    path string, dropping points closer than TRMNL_MIN_PIXEL_GAP to the last kept
+    one and any subpath left with fewer than two points."""
+    parts = []
+    for seg in segments:
+        pixels = []
+        last = None
+        for lat, lon in seg:
+            wx, wy = _trmnl_world_px(lat, lon, zoom)
+            px, py = wx - origin_x, wy - origin_y
+            if last is None or math.hypot(px - last[0], py - last[1]) >= TRMNL_MIN_PIXEL_GAP:
+                pixels.append((px, py))
+                last = (px, py)
+        if len(pixels) < 2:
+            continue
+        parts.append("M" + " L".join(f"{round(px, 1)} {round(py, 1)}" for px, py in pixels))
+    return " ".join(parts)
+
+
+def _trmnl_build_tilemap(drive_segs, fly_segs, width, height, tile_base, with_basemap=True, padding=24):
+    """Fit the whole track (driving + flying) to a slippy-map zoom, then return the
+    basemap tiles and separate driving/flying SVG paths — all in the same
+    width x height pixel space so they line up.
 
     Tiles are served through our own /trmnl/tile proxy (tile_base) rather than
     OSM directly, because TRMNL's renderer sends no Referer and OSM blocks that.
-    Returns (tiles, path_d, zoom); tiles is a list of {url, left, top} (empty when
-    with_basemap is False).
+    Returns (tiles, drive_d, fly_d, zoom); tiles is a list of {url, left, top}
+    (empty when with_basemap is False).
     """
-    pts = [pt for seg in kept for pt in seg]
+    pts = [pt for seg in (drive_segs + fly_segs) for pt in seg]
     if not pts:
-        return [], "", 0
+        return [], "", "", 0
 
     lats = [p[0] for p in pts]
     lons = [p[1] for p in pts]
@@ -191,21 +238,9 @@ def _trmnl_build_tilemap(kept, width, height, tile_base, with_basemap=True, padd
                     "top": round(ty * TILE_SIZE - origin_y, 1),
                 })
 
-    parts = []
-    for seg in kept:
-        pixels = []
-        last = None
-        for lat, lon in seg:
-            wx, wy = _trmnl_world_px(lat, lon, zoom)
-            px, py = wx - origin_x, wy - origin_y
-            if last is None or math.hypot(px - last[0], py - last[1]) >= TRMNL_MIN_PIXEL_GAP:
-                pixels.append((px, py))
-                last = (px, py)
-        if len(pixels) < 2:
-            continue
-        parts.append("M" + " L".join(f"{round(px, 1)} {round(py, 1)}" for px, py in pixels))
-
-    return tiles, " ".join(parts), zoom
+    drive_d = _segments_to_path(drive_segs, origin_x, origin_y, zoom)
+    fly_d = _segments_to_path(fly_segs, origin_x, origin_y, zoom)
+    return tiles, drive_d, fly_d, zoom
 
 
 def _trmnl_credentials():
@@ -357,8 +392,10 @@ def _trmnl_payload(username, password):
     scheme = "http" if host.split(":")[0] in ("localhost", "127.0.0.1") else "https"
     tile_base = f"{scheme}://{host}/trmnl/tile/"
 
-    kept, stats = _trmnl_extract(features)
-    tiles, map_d, zoom = _trmnl_build_tilemap(kept, width, height, tile_base, with_basemap)
+    drive_segs, fly_segs, stats = _trmnl_extract(features)
+    tiles, map_d, fly_d, zoom = _trmnl_build_tilemap(
+        drive_segs, fly_segs, width, height, tile_base, with_basemap
+    )
 
     distance_km = stats["distance_km"]
     distance_mi = distance_km / 1.609
@@ -387,11 +424,12 @@ def _trmnl_payload(username, password):
 
     return {
         "map_d": map_d,
+        "fly_d": fly_d,
         "tiles": tiles,
         "zoom": zoom,
         "width": width,
         "height": height,
-        "has_data": bool(map_d),
+        "has_data": bool(map_d or fly_d),
         "days": "all" if all_time else days,
         "range_label": range_label,
         "date_range": date_range,
