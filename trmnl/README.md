@@ -1,4 +1,4 @@
-# TRMNL "Roads Driven" plugin
+# TRMNL "WhereHaveIBeen" plugin
 
 Displays your last 30 days of driving as a road map with headline stats, sized
 for the TRMNL 800×480 black & white e-ink screen.
@@ -151,7 +151,7 @@ header shows the actual span of your data (e.g. `Mar 3, 2023 – Jul 11, 2026`)
 instead of a day count. Add or remove options freely — any positive integer
 works as a `days` value.
 
-> **If it renders blank** (ghost "Roads driven ·" header, empty stats), the poll
+> **If it renders blank** (ghost "WhereHaveIBeen ·" header, empty stats), the poll
 > is failing and TRMNL is rendering with no data — it is *not* your endpoint. To
 > confirm, temporarily set the Polling URL to a plain `https://<your-domain>/trmnl`
 > (no query at all): it defaults to 30 days and must render. If that works, the
