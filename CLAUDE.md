@@ -29,6 +29,7 @@ Create a `.env` file with:
 - Session-based authentication storing OwnTracks credentials
 - Proxy endpoints for the recorder (`/locations`, `/usersdevices`) and for the
   user management API's per-user compute (`/me/track`, `/me/heatmap`, `/all-roads`)
+  and imported history (`/imports`, `/imports/google-timeline`)
 - Settings persistence in Flask session (`/save_settings`, `/get_settings`)
 
 **Frontend (Vanilla JS in `static/js/`):**
@@ -193,6 +194,26 @@ is blocked. The proxy validates coordinates and caches tiles in memory.
 Forwarded query parameters: `from`, `to` (ISO 8601 UTC), `device`, `buffer_m`,
 `refresh`. No `user` parameter exists; the API serves the session's account
 only. `202` and `400` pass through; `401`/`403` upstream become `401` here.
+
+### Google Maps Timeline import
+
+| Endpoint | Method | Proxies To | Description |
+|----------|--------|------------|-------------|
+| `/imports` | GET | `/api/me/imports` | Imports on file for the session's account |
+| `/imports/google-timeline` | PUT | `/api/me/imports/google-timeline` | Body is the raw export file; streamed to the API in 1 MB chunks, never buffered here |
+| `/imports/google-timeline` | DELETE | `/api/me/imports/google-timeline` | Remove the import |
+
+The Configure panel's "Import" tab uploads the file with `fetch(..., {method:
+'PUT', body: file})`, shows the stored import (points, months covered,
+imported at) and, from each track response's `imports` field, how many
+imported points are on the map and how many were skipped. The API parses the
+file (phone "Export Timeline data" JSON or Takeout `Records.json`), folds the
+points into the same server-side track as the devices, and skips any UTC day
+that has an OwnTracks fix, so OwnTracks data always wins on overlap. An import
+belongs to the account and shows regardless of the selected device. After an
+upload or removal the page reloads all-time data; the API has dropped its
+cached entries so the first load recomputes behind `202`. An account with an
+import but no reporting device still gets a map instead of the setup guide.
 
 ### Frontend Authentication Flow
 

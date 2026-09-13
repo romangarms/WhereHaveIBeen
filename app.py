@@ -327,6 +327,70 @@ def me_heatmap():
     return _proxy_me("/api/me/heatmap")
 
 
+# ---------------------------------------------------------------------------
+# Imported history (Google Maps Timeline) — /api/me/imports on the API
+# ---------------------------------------------------------------------------
+IMPORT_SOURCES = ("google-timeline",)
+
+
+def _relay_json(response):
+    try:
+        body = response.json()
+    except ValueError:
+        body = {"error": INTERNAL_ERROR_MESSAGE}
+    return jsonify(body), response.status_code
+
+
+@app.route("/imports")
+def list_imports():
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "Not logged in."}), 401
+    try:
+        response = requests.get(
+            OWNTRACKS_URL + "/api/me/imports",
+            auth=HTTPBasicAuth(username, session.get("password")),
+            timeout=30,
+        )
+    except requests.RequestException as err:
+        app.logger.error(f"Imports: request failed: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 502
+    if response.status_code in (401, 403):
+        return jsonify({"error": "Not logged in."}), 401
+    return _relay_json(response)
+
+
+@app.route("/imports/<source>", methods=["PUT", "DELETE"])
+def import_source(source):
+    """
+    PUT streams the raw export file (the request body) to the API in 1 MB
+    chunks, which parses and stores it; DELETE removes it. The body is never
+    held in memory here, so a large export costs the Fly machine nothing.
+    """
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "Not logged in."}), 401
+    if source not in IMPORT_SOURCES:
+        return jsonify({"error": "Unknown import source."}), 404
+    auth = HTTPBasicAuth(username, session.get("password"))
+    url = OWNTRACKS_URL + "/api/me/imports/" + source
+    try:
+        if request.method == "DELETE":
+            response = requests.delete(url, auth=auth, timeout=60)
+        else:
+            chunks = iter(lambda: request.stream.read(1 << 20), b"")
+            response = requests.put(url, auth=auth, data=chunks,
+                                    headers={"Content-Type": "application/json"}, timeout=300)
+    except requests.Timeout:
+        return jsonify({"error": "The server took too long to answer, try again."}), 504
+    except requests.RequestException as err:
+        app.logger.error(f"Imports: {request.method} {source} failed: {err}")
+        return jsonify({"error": INTERNAL_ERROR_MESSAGE}), 502
+    if response.status_code in (401, 403):
+        return jsonify({"error": "Not logged in."}), 401
+    return _relay_json(response)
+
+
 @app.route("/everyone")
 def everyone():
     """

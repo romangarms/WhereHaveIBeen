@@ -64,6 +64,7 @@
                     <button type="button" class="cfg__tab is-active" data-tab="data" onclick="showConfigTab('data')">Data</button>
                     <button type="button" class="cfg__tab" data-tab="map" onclick="showConfigTab('map')">Map</button>
                     <button type="button" class="cfg__tab" data-tab="cache" onclick="showConfigTab('cache')">Server</button>
+                    <button type="button" class="cfg__tab" data-tab="import" onclick="showConfigTab('import')">Import</button>
                     <button type="button" class="cfg__tab" data-tab="account" onclick="showConfigTab('account')">Account</button>
                 </div>
 
@@ -153,6 +154,35 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn--warning-outline btn--start" onclick="recomputeOnServer()">Recompute on server</button>
+                    </div>
+
+                    <div class="cfg__pane" id="cfgPaneImport" hidden>
+                        <div>
+                            <h5 class="field__label field__label--tight">Google Maps Timeline</h5>
+                            <p class="field__hint">Bring in the years before OwnTracks. In the Google Maps app open your profile → Your timeline → ⋯ → Location &amp; privacy settings → Export Timeline data, then upload the JSON file here. Google Takeout's Records.json works too.</p>
+                            <p class="field__hint">OwnTracks stays the source of truth: any day that has an OwnTracks fix ignores the Timeline. Imported points carry no speed or altitude, so they never move the top-speed or altitude stats.</p>
+                        </div>
+                        <div class="cards" id="importStatus" hidden>
+                            <div class="card">
+                                <div class="card__label">Points</div>
+                                <div class="card__value" id="importPoints">—</div>
+                            </div>
+                            <div class="card">
+                                <div class="card__label">Covers</div>
+                                <div class="card__value" id="importRange">—</div>
+                            </div>
+                            <div class="card">
+                                <div class="card__label">Imported</div>
+                                <div class="card__value" id="importedAt">—</div>
+                            </div>
+                        </div>
+                        <p class="field__hint" id="importUsage" hidden></p>
+                        <div class="stack">
+                            <input type="file" id="importFile" accept=".json,application/json" hidden onchange="submitImport(this)" />
+                            <button type="button" class="btn btn--primary" id="importAction" onclick="document.getElementById('importFile').click()">Import Timeline file</button>
+                            <p class="form-message" id="importMessage"></p>
+                            <button type="button" class="link-btn link-btn--danger" id="importRemove" hidden onclick="removeImport()">Remove imported Timeline data</button>
+                        </div>
                     </div>
 
                     <div class="cfg__pane" id="cfgPaneAccount" hidden>
@@ -429,7 +459,7 @@
         document.querySelectorAll('.cfg__tab').forEach(btn => {
             btn.classList.toggle('is-active', btn.dataset.tab === tab);
         });
-        ['Data', 'Map', 'Cache', 'Account'].forEach(name => {
+        ['Data', 'Map', 'Cache', 'Import', 'Account'].forEach(name => {
             document.getElementById('cfgPane' + name).hidden = name.toLowerCase() !== tab;
         });
     }
@@ -702,6 +732,116 @@
     function updateServerCacheUI(result) {
         document.getElementById('cacheComputedAt').textContent = formatServerTime(result.computed_at);
         document.getElementById('cacheLatestFix').textContent = formatServerTime(result.latest_tst);
+        updateImportUsage(result.imports);
+    }
+
+    // ---- Imported history ---------------------------------------------------
+    // The API folds imported points into the same track as the devices, so
+    // the only client work is uploading the file and reloading afterwards.
+
+    const IMPORT_SOURCE = 'google-timeline';
+    let importsState = [];
+
+    async function loadImports() {
+        try {
+            const response = await fetch('/imports');
+            importsState = response.ok ? ((await response.json()).imports || []) : [];
+        } catch (err) {
+            importsState = [];
+        }
+        renderImportStatus();
+        return importsState;
+    }
+
+    function hasImports() {
+        return importsState.length > 0;
+    }
+
+    function formatMonth(tst) {
+        return new Date(tst * 1000).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
+
+    function renderImportStatus() {
+        const row = importsState.find(r => r.source === IMPORT_SOURCE);
+        document.getElementById('importStatus').hidden = !row;
+        document.getElementById('importRemove').hidden = !row;
+        document.getElementById('importAction').textContent = row ? 'Replace Timeline file' : 'Import Timeline file';
+        if (!row) {
+            document.getElementById('importUsage').hidden = true;
+            return;
+        }
+        document.getElementById('importPoints').textContent = row.points.toLocaleString();
+        document.getElementById('importRange').textContent = formatMonth(row.first_tst) + ' – ' + formatMonth(row.last_tst);
+        document.getElementById('importedAt').textContent = formatServerTime(row.imported_at);
+    }
+
+    function updateImportUsage(stats) {
+        const usage = document.getElementById('importUsage');
+        const row = stats && stats[IMPORT_SOURCE];
+        if (!row) {
+            usage.hidden = true;
+            return;
+        }
+        usage.hidden = false;
+        usage.textContent = row.points.toLocaleString() + ' imported points are on the map for this range'
+            + (row.skipped ? ', ' + row.skipped.toLocaleString() + ' were skipped on days OwnTracks recorded.' : '.');
+    }
+
+    function setImportMessage(text, kind) {
+        const el = document.getElementById('importMessage');
+        el.textContent = text;
+        el.className = 'form-message' + (kind ? ' form-message-' + kind : '');
+    }
+
+    function setImportBusy(busy) {
+        document.getElementById('importAction').disabled = busy;
+        document.getElementById('importRemove').disabled = busy;
+    }
+
+    async function submitImport(input) {
+        const file = input.files[0];
+        if (!file) return;
+        setImportMessage('Uploading ' + file.name + '…');
+        setImportBusy(true);
+        try {
+            const response = await fetch('/imports/' + IMPORT_SOURCE, { method: 'PUT', body: file });
+            let data = {};
+            try { data = await response.json(); } catch (err) { /* not JSON */ }
+            if (!response.ok) {
+                throw new Error(data.error || 'Upload failed (HTTP ' + response.status + ')');
+            }
+            setImportMessage('Imported ' + data.points.toLocaleString() + ' points. Recomputing your map…', 'success');
+            await loadImports();
+            trackMemo = null;
+            closeConfig();
+            loadAllTimeData();
+        } catch (err) {
+            setImportMessage(err.message, 'error');
+        } finally {
+            input.value = '';
+            setImportBusy(false);
+        }
+    }
+
+    async function removeImport() {
+        setImportBusy(true);
+        try {
+            const response = await fetch('/imports/' + IMPORT_SOURCE, { method: 'DELETE' });
+            if (!response.ok) {
+                let message = '';
+                try { message = (await response.json()).error || ''; } catch (err) { /* not JSON */ }
+                throw new Error(message || 'Could not remove the import (HTTP ' + response.status + ')');
+            }
+            setImportMessage('Imported data removed. Recomputing your map…');
+            await loadImports();
+            trackMemo = null;
+            closeConfig();
+            loadAllTimeData();
+        } catch (err) {
+            setImportMessage(err.message, 'error');
+        } finally {
+            setImportBusy(false);
+        }
     }
 
     // Earlier versions cached shapes in the browser; that store is no longer
@@ -716,7 +856,7 @@
 
         getUserSettings();
 
-        getUsersAndDevices().then(usersAndDevices => {
+        getUsersAndDevices().then(async usersAndDevices => {
             if (usersAndDevices === -1) {
                 openForm();
                 return;
@@ -729,14 +869,15 @@
             // Logged in, but no device has reported any data yet. This is the
             // typical state for a brand-new account that hasn't pointed the
             // OwnTracks app at the server — surface the setup guide instead of
-            // trying to draw an empty map.
+            // trying to draw an empty map. Imported history counts as data.
             const hasDevices = document.getElementById('deviceBox').options.length > 0;
-            if (!hasDevices) {
+            if (!hasDevices && !(await loadImports()).length) {
                 closeForm();
                 finishProgressBar("No devices have reported yet");
                 showSetupGuide();
                 return;
             }
+            if (hasDevices) loadImports();
 
             runTasks();
         });
