@@ -68,9 +68,7 @@
             if (!resp.ok) return;
             const mine = (await resp.json()).stats?.driving?.area_km2 || 0;
             if (!mine) return;
-            // Corridors are measured with slightly different simplification on
-            // each side, so a user who is most of the shape can nudge past 100.
-            const pct = Math.min(100, mine / everyoneAreaKm2 * 100);
+            const pct = mine / everyoneAreaKm2 * 100;
             document.getElementById('sharePct').textContent = formatNumber(pct, pct < 10 ? 1 : 0) + "%";
             document.getElementById('shareCard').hidden = false;
         } catch (err) {
