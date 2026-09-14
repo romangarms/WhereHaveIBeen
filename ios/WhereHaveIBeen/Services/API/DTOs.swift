@@ -82,3 +82,30 @@ typealias AggregateFeature = GeoJSONFeature<AggregateProperties>
 struct APIErrorBody: Codable, Sendable {
     var error: String
 }
+
+/// What the server reports in a `202` body while it computes.
+struct ComputeProgress: Codable, Sendable, Equatable {
+    var stage: String
+    var done: Int
+    var total: Int
+
+    var fraction: Double {
+        total > 0 ? min(0.99, Double(done) / Double(total)) : 0
+    }
+
+    var percent: Int {
+        Int((fraction * 100).rounded())
+    }
+
+    var stageText: String {
+        switch stage {
+        case "building": "building corridors"
+        case "importing": "adding imported history"
+        default: "fetching GPS history"
+        }
+    }
+}
+
+struct ComputingBody: Codable, Sendable {
+    var progress: ComputeProgress?
+}

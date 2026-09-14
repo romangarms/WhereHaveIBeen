@@ -75,7 +75,7 @@ enum CacheKey {
 }
 
 enum LoadEvent<Value: Codable & Sendable>: Sendable {
-    case computing(retryAfter: TimeInterval)
+    case computing(retryAfter: TimeInterval, progress: ComputeProgress?)
     case ready(CacheEntry<Value>)
 }
 
@@ -162,8 +162,8 @@ actor TrackStore {
                             continuation.yield(.ready(entry))
                             continuation.finish()
                             return
-                        case .computing(let retryAfter):
-                            continuation.yield(.computing(retryAfter: retryAfter))
+                        case .computing(let retryAfter, let progress):
+                            continuation.yield(.computing(retryAfter: retryAfter, progress: progress))
                             if clock.now - start > pollTimeout { throw APIError.timedOut }
                             try await Task.sleep(for: .seconds(min(max(retryAfter, 1), 60)))
                             isPoll = true

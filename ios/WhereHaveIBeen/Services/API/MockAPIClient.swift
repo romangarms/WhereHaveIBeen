@@ -1,10 +1,17 @@
 import Foundation
 
 /// Serves the committed fixtures. The password "wrong" is rejected so the sign-in
-/// error path can be exercised, and a `refresh` request answers `computing` once so
-/// the polling banner can be seen.
+/// error path can be exercised, and a `refresh` request answers `computing` for a
+/// few polls, reporting progress, so the progress strip can be seen.
 actor MockAPIClient: APIClientProtocol {
-    private var pendingRefreshes: Set<String> = []
+    private static let computingSteps: [ComputeProgress?] = [
+        nil,
+        ComputeProgress(stage: "fetching", done: 1, total: 6),
+        ComputeProgress(stage: "fetching", done: 3, total: 6),
+        ComputeProgress(stage: "importing", done: 5, total: 6),
+        ComputeProgress(stage: "building", done: 6, total: 6),
+    ]
+    private var pendingPolls: [String: Int] = [:]
 
     func devices(credentials: Credentials) async throws -> DevicesResponse {
         try await Task.sleep(for: .milliseconds(300))
@@ -27,11 +34,14 @@ actor MockAPIClient: APIClientProtocol {
     private func simulate<Value: Decodable & Sendable>(key: String, refresh: Bool) async throws -> FetchOutcome<Value> {
         try await Task.sleep(for: .milliseconds(400))
         if refresh {
-            pendingRefreshes.insert(key)
-            return .computing(retryAfter: 2)
+            pendingPolls[key] = 0
         }
-        if pendingRefreshes.remove(key) != nil {
-            return .computing(retryAfter: 1)
+        if let step = pendingPolls[key] {
+            if step < Self.computingSteps.count {
+                pendingPolls[key] = step + 1
+                return .computing(retryAfter: 1, progress: Self.computingSteps[step])
+            }
+            pendingPolls[key] = nil
         }
         return .ready(try Fixtures.decode(Value.self, named: key))
     }

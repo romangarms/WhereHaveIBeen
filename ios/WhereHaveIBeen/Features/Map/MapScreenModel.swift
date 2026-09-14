@@ -46,7 +46,7 @@ struct MapConfiguration: Sendable, Equatable, Codable {
 enum LoadPhase: Equatable {
     case idle
     case loading
-    case computing
+    case computing(ComputeProgress?)
     case failed(String)
 }
 
@@ -212,7 +212,7 @@ final class MapScreenModel {
                     for try await event in await store.loadTrack(request, refresh: refresh) {
                         try Task.checkCancellation()
                         switch event {
-                        case .computing: phase = .computing
+                        case .computing(_, let progress): phase = .computing(progress)
                         case .ready(let entry): apply(track: entry, key: key)
                         }
                     }
@@ -224,7 +224,7 @@ final class MapScreenModel {
                     for try await event in await store.loadHeatmap(request, refresh: refresh) {
                         try Task.checkCancellation()
                         switch event {
-                        case .computing: phase = .computing
+                        case .computing(_, let progress): phase = .computing(progress)
                         case .ready(let entry): apply(heatmap: entry, key: key)
                         }
                     }
@@ -236,7 +236,7 @@ final class MapScreenModel {
                 for try await event in await store.loadEveryone(refresh: refresh) {
                     try Task.checkCancellation()
                     switch event {
-                    case .computing: phase = .computing
+                    case .computing(_, let progress): phase = .computing(progress)
                     case .ready(let entry): apply(everyone: entry, key: key)
                     }
                 }

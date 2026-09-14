@@ -36,6 +36,13 @@ struct MapContainer: UIViewRepresentable {
         map.showsCompass = false
         map.showsScale = false
         map.showsUserLocation = true
+        map.registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (map: FittingMapView, _) in
+            for overlay in map.overlays {
+                guard let renderer = map.renderer(for: overlay) as? CoverageRenderer else { continue }
+                renderer.tint = UIColor.explored.resolvedColor(with: map.traitCollection)
+                renderer.setNeedsDisplay()
+            }
+        }
         return map
     }
 
@@ -58,9 +65,10 @@ struct MapContainer: UIViewRepresentable {
             let currentIDs = Set(current.map(ObjectIdentifier.init))
             // Flights live on their own level: MapKit re-renders every overlay on a
             // level whenever one of them changes, and the corridor is expensive.
+            // Flights take the lower level so the corridor paints over them.
             let added = wanted.filter { !currentIDs.contains(ObjectIdentifier($0)) }
-            map.addOverlays(added.filter { !Coordinator.isFlight($0) }, level: .aboveRoads)
-            map.addOverlays(added.filter(Coordinator.isFlight), level: .aboveLabels)
+            map.addOverlays(added.filter(Coordinator.isFlight), level: .aboveRoads)
+            map.addOverlays(added.filter { !Coordinator.isFlight($0) }, level: .aboveLabels)
             map.removeOverlays(current.filter { !wantedIDs.contains(ObjectIdentifier($0)) })
             coordinator.overlaySetID = overlays.id
         }
@@ -99,7 +107,7 @@ struct MapContainer: UIViewRepresentable {
             let renderer: MKOverlayRenderer = switch overlay {
             case let heat as HeatmapOverlay: HeatmapRenderer(overlay: heat)
             case is FlightBufferOverlay: FlightBufferRenderer(overlay: overlay)
-            case is MKMultiPolygon: CoverageRenderer(overlay: overlay)
+            case is MKMultiPolygon: CoverageRenderer(overlay: overlay, traits: mapView.traitCollection)
             case is MKPolyline: FlightLineRenderer(overlay: overlay)
             default: MKOverlayRenderer(overlay: overlay)
             }

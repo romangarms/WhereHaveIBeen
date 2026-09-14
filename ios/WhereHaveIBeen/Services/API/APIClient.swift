@@ -26,7 +26,7 @@ enum APIError: Error, Sendable, Equatable, LocalizedError {
 
 enum FetchOutcome<Value: Sendable>: Sendable {
     case ready(Value)
-    case computing(retryAfter: TimeInterval)
+    case computing(retryAfter: TimeInterval, progress: ComputeProgress? = nil)
 }
 
 protocol APIClientProtocol: Sendable {
@@ -38,7 +38,10 @@ protocol APIClientProtocol: Sendable {
 
 actor APIClient: APIClientProtocol {
     static let productionBaseURL = URL(string: "https://mini.romangarms.com")!
-    static let defaultRetryAfter: TimeInterval = 5
+    /// The same cadence as the web app: a 202 poll is a lock check on the
+    /// server, so it is tight; a 503 means the aggregate cache is warming.
+    static let computingPollInterval: TimeInterval = 1
+    static let warmingPollInterval: TimeInterval = 5
 
     private let baseURL: @Sendable () -> URL
     private let session: URLSession
@@ -91,12 +94,10 @@ actor APIClient: APIClientProtocol {
         guard let http = response as? HTTPURLResponse else {
             throw APIError.network("Not an HTTP response")
         }
-        return try Self.interpret(status: http.statusCode, headers: http.allHeaderFields, data: data)
+        return try Self.interpret(status: http.statusCode, data: data)
     }
 
-    static func interpret<Value: Decodable>(
-        status: Int, headers: [AnyHashable: Any], data: Data
-    ) throws -> FetchOutcome<Value> {
+    static func interpret<Value: Decodable>(status: Int, data: Data) throws -> FetchOutcome<Value> {
         switch status {
         case 200:
             do {
@@ -104,10 +105,11 @@ actor APIClient: APIClientProtocol {
             } catch {
                 throw APIError.decoding(String(describing: error))
             }
-        case 202, 503:
-            let header = headers["Retry-After"] as? String
-            let seconds = header.flatMap(TimeInterval.init) ?? defaultRetryAfter
-            return .computing(retryAfter: seconds)
+        case 202:
+            let progress = (try? APIJSON.decoder.decode(ComputingBody.self, from: data))?.progress
+            return .computing(retryAfter: computingPollInterval, progress: progress)
+        case 503:
+            return .computing(retryAfter: warmingPollInterval)
         case 400:
             let message = (try? APIJSON.decoder.decode(APIErrorBody.self, from: data))?.error ?? "Bad request"
             throw APIError.badRequest(message)

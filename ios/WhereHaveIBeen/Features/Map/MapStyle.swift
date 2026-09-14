@@ -2,7 +2,13 @@ import MapKit
 import UIKit
 
 extension UIColor {
-    static let explored = UIColor(red: 0x3D / 255, green: 0x6B / 255, blue: 0xA8 / 255, alpha: 1)
+    /// The web app's blue washes out against the muted dark map, so dark mode
+    /// gets a lighter, more saturated shade.
+    static let explored = UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0x6E / 255, green: 0xA8 / 255, blue: 0xF0 / 255, alpha: 1)
+            : UIColor(red: 0x3D / 255, green: 0x6B / 255, blue: 0xA8 / 255, alpha: 1)
+    }
     static let flightBuffer = UIColor(red: 0xE6 / 255, green: 0xA2 / 255, blue: 0x3C / 255, alpha: 1)
     static let flightLine = UIColor(red: 0xC9 / 255, green: 0x84 / 255, blue: 0x18 / 255, alpha: 1)
 }
@@ -55,8 +61,18 @@ final class CoverageRenderer: MKOverlayRenderer {
     private var cache: [Int: [Piece]] = [:]
     private let lock = NSLock()
 
-    override init(overlay: any MKOverlay) {
+    /// `draw` runs off the main thread, where a dynamic colour resolves against
+    /// no trait collection, so the colour is resolved up front and again on
+    /// appearance changes (see `MapContainer`).
+    private var resolvedTint: UIColor
+    var tint: UIColor {
+        get { lock.withLock { resolvedTint } }
+        set { lock.withLock { resolvedTint = newValue } }
+    }
+
+    init(overlay: any MKOverlay, traits: UITraitCollection = .current) {
         let multi = overlay as? MKMultiPolygon
+        resolvedTint = UIColor.explored.resolvedColor(with: traits)
         super.init(overlay: overlay)
         polygons = (multi?.polygons ?? []).map { polygon in
             ([polygon] + (polygon.interiorPolygons ?? [])).map { ring in
@@ -73,8 +89,9 @@ final class CoverageRenderer: MKOverlayRenderer {
         let visible = pieces(zoomLevel: zoomLevel).filter { $0.bounds.intersects(tile) }
         guard !visible.isEmpty else { return }
 
-        context.setFillColor(UIColor.explored.withAlphaComponent(style.fillAlpha).cgColor)
-        context.setStrokeColor(UIColor.explored.withAlphaComponent(style.strokeAlpha).cgColor)
+        let tint = tint
+        context.setFillColor(tint.withAlphaComponent(style.fillAlpha).cgColor)
+        context.setStrokeColor(tint.withAlphaComponent(style.strokeAlpha).cgColor)
         context.setLineWidth(strokeWidth)
         context.setLineJoin(.round)
         context.setLineCap(.round)
@@ -239,7 +256,7 @@ enum PolygonClip {
 final class FlightBufferRenderer: MKMultiPolygonRenderer {
     override init(overlay: any MKOverlay) {
         super.init(overlay: overlay)
-        fillColor = .flightBuffer.withAlphaComponent(0.22)
+        fillColor = .flightBuffer.withAlphaComponent(0.15)
         strokeColor = nil
     }
 }
@@ -247,7 +264,7 @@ final class FlightBufferRenderer: MKMultiPolygonRenderer {
 final class FlightLineRenderer: MKPolylineRenderer {
     override init(overlay: any MKOverlay) {
         super.init(overlay: overlay)
-        strokeColor = .flightLine.withAlphaComponent(0.8)
+        strokeColor = .flightLine.withAlphaComponent(0.45)
         lineWidth = 2.4
         lineDashPattern = [10, 8]
         lineCap = .round

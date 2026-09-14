@@ -79,38 +79,49 @@ struct APIClientTests {
     @Test func statusCodesMapToErrorsAndStates() throws {
         typealias Outcome = FetchOutcome<DevicesResponse>
         let body = Data(#"{"username":"roman","devices":["phone"]}"#.utf8)
-        guard case .ready(let devices) = try APIClient.interpret(status: 200, headers: [:], data: body) as Outcome else {
+        guard case .ready(let devices) = try APIClient.interpret(status: 200, data: body) as Outcome else {
             Issue.record("expected ready")
             return
         }
         #expect(devices.devices == ["phone"])
 
-        guard case .computing(let retry) = try APIClient.interpret(status: 202, headers: ["Retry-After": "7"], data: Data()) as Outcome else {
+        guard case .computing(let retry, _) = try APIClient.interpret(status: 202, data: Data()) as Outcome else {
             Issue.record("expected computing")
             return
         }
-        #expect(retry == 7)
+        #expect(retry == APIClient.computingPollInterval)
 
-        guard case .computing(let fallback) = try APIClient.interpret(status: 503, headers: [:], data: Data()) as Outcome else {
+        guard case .computing(let warming, _) = try APIClient.interpret(status: 503, data: Data()) as Outcome else {
             Issue.record("expected computing")
             return
         }
-        #expect(fallback == APIClient.defaultRetryAfter)
+        #expect(warming == APIClient.warmingPollInterval)
+
+        let computing = Data(#"{"status":"computing","progress":{"stage":"building","done":3,"total":4}}"#.utf8)
+        guard case .computing(_, let progress) = try APIClient.interpret(status: 202, data: computing) as Outcome else {
+            Issue.record("expected computing")
+            return
+        }
+        #expect(progress == ComputeProgress(stage: "building", done: 3, total: 4))
+        #expect(progress?.fraction == 0.75)
+        #expect(progress?.stageText == "building corridors")
+        #expect(ComputeProgress(stage: "importing", done: 2, total: 3).stageText == "adding imported history")
+        #expect(ComputeProgress(stage: "fetching", done: 2, total: 3).percent == 67)
 
         #expect(throws: APIError.unauthorized) {
-            try APIClient.interpret(status: 401, headers: [:], data: Data()) as Outcome
+            try APIClient.interpret(status: 401, data: Data()) as Outcome
         }
         #expect(throws: APIError.forbidden) {
-            try APIClient.interpret(status: 403, headers: [:], data: Data()) as Outcome
+            try APIClient.interpret(status: 403, data: Data()) as Outcome
         }
         #expect(throws: APIError.badRequest("unknown device")) {
-            try APIClient.interpret(status: 400, headers: [:], data: Data(#"{"error":"unknown device"}"#.utf8)) as Outcome
+            try APIClient.interpret(status: 400, data: Data(#"{"error":"unknown device"}"#.utf8)) as Outcome
         }
         #expect(throws: APIError.unexpectedStatus(500)) {
-            try APIClient.interpret(status: 500, headers: [:], data: Data()) as Outcome
+            try APIClient.interpret(status: 500, data: Data()) as Outcome
         }
         #expect(throws: APIError.self) {
-            try APIClient.interpret(status: 200, headers: [:], data: Data("nope".utf8)) as Outcome
+            try APIClient.interpret(status: 200, data: Data("nope".utf8)) as Outcome
         }
     }
 

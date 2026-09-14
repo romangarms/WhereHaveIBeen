@@ -78,8 +78,8 @@ struct StatusBanner: View {
     var body: some View {
         Group {
             switch model.phase {
-            case .computing:
-                row(icon: nil, text: "Building your map, this can take a minute the first time", progress: true)
+            case .computing(let progress):
+                ComputeStrip(progress: progress)
             case .loading where !model.hasData:
                 row(icon: nil, text: "Loading…", progress: true)
             case .failed(let message):
@@ -110,6 +110,39 @@ struct StatusBanner: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .glassEffect(.regular, in: .rect(cornerRadius: 14))
+    }
+}
+
+/// Mirrors the web app's progress strip: the server's stage and step count
+/// while it computes, an indeterminate spinner until it reports any.
+struct ComputeStrip: View {
+    var progress: ComputeProgress?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                if progress == nil { ProgressView().controlSize(.small) }
+                Text(message).font(.footnote).lineLimit(2)
+                Spacer(minLength: 0)
+                if let progress, progress.total > 0 {
+                    Text("\(progress.done) of \(progress.total) · \(progress.percent)%")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let progress {
+                ProgressView(value: progress.fraction)
+                    .tint(Color.accentColor)
+                    .animation(.linear(duration: 0.32), value: progress.fraction)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+    }
+
+    private var message: String {
+        if let progress { return "Computing on the server — \(progress.stageText)" }
+        return "Computing on the server — the first load of a long history can take a minute"
     }
 }
 
