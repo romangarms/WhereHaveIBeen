@@ -39,6 +39,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
+        NSLocationWhenInUseUsageDescription: Shows where you are on the map and lets you zoom to it.
         NSAppTransportSecurity:
           NSExceptionDomains:
             localhost:

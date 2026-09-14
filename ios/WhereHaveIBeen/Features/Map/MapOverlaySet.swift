@@ -2,7 +2,8 @@ import Foundation
 import MapKit
 
 /// Everything on the map for one data state. Replaced as a unit so the map never
-/// shows a half-updated mix of old and new overlays.
+/// shows a half-updated mix of old and new overlays. Flight overlays are always
+/// part of the set; whether they are visible is the map's concern.
 @MainActor
 struct MapOverlaySet {
     let id = UUID()

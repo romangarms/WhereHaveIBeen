@@ -1,9 +1,32 @@
 import MapKit
 import SwiftUI
 
+/// A request to centre the map on one place. `generation` makes repeated requests
+/// for the same coordinate distinguishable.
+struct MapFocus: Equatable {
+    static let spanMeters: CLLocationDistance = 10_000
+
+    var latitude: Double
+    var longitude: Double
+    var generation: Int
+
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+
+    /// A square `spanMeters` across centred on the coordinate, in map units.
+    var rect: MKMapRect {
+        let centre = MKMapPoint(coordinate)
+        let half = MKMapPointsPerMeterAtLatitude(latitude) * Self.spanMeters / 2
+        return MKMapRect(x: centre.x - half, y: centre.y - half, width: half * 2, height: half * 2)
+    }
+}
+
 struct MapContainer: UIViewRepresentable {
     var overlays: MapOverlaySet
     var fitGeneration: Int
+    var focus: MapFocus? = nil
+    var flightsVisible = false
     var bottomInset: CGFloat
 
     func makeUIView(context: Context) -> FittingMapView {
@@ -12,12 +35,20 @@ struct MapContainer: UIViewRepresentable {
         map.preferredConfiguration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
         map.showsCompass = false
         map.showsScale = false
-        map.showsUserLocation = false
+        map.showsUserLocation = true
         return map
     }
 
     func updateUIView(_ map: FittingMapView, context: Context) {
         let coordinator = context.coordinator
+        // Flight overlays stay on the map and are shown or hidden through their
+        // renderer's alpha, so the toggle never adds or removes overlays.
+        if coordinator.flightsVisible != flightsVisible {
+            coordinator.flightsVisible = flightsVisible
+            for overlay in map.overlays where Coordinator.isFlight(overlay) {
+                map.renderer(for: overlay)?.alpha = flightsVisible ? 1 : 0
+            }
+        }
         if coordinator.overlaySetID != overlays.id {
             // Overlays shared between the old and new set stay put: removing and
             // re-adding one throws away its rendered tiles and blanks the map.
@@ -25,7 +56,11 @@ struct MapContainer: UIViewRepresentable {
             let current = map.overlays
             let wantedIDs = Set(wanted.map(ObjectIdentifier.init))
             let currentIDs = Set(current.map(ObjectIdentifier.init))
-            map.addOverlays(wanted.filter { !currentIDs.contains(ObjectIdentifier($0)) }, level: .aboveRoads)
+            // Flights live on their own level: MapKit re-renders every overlay on a
+            // level whenever one of them changes, and the corridor is expensive.
+            let added = wanted.filter { !currentIDs.contains(ObjectIdentifier($0)) }
+            map.addOverlays(added.filter { !Coordinator.isFlight($0) }, level: .aboveRoads)
+            map.addOverlays(added.filter(Coordinator.isFlight), level: .aboveLabels)
             map.removeOverlays(current.filter { !wantedIDs.contains(ObjectIdentifier($0)) })
             coordinator.overlaySetID = overlays.id
         }
@@ -33,10 +68,17 @@ struct MapContainer: UIViewRepresentable {
             coordinator.fitGeneration = fitGeneration
             let regions = overlays.fitRegions
             if !regions.isEmpty {
-                let padding = UIEdgeInsets(top: 140, left: 32, bottom: bottomInset + 32, right: 32)
                 map.fit(regions, padding: padding)
             }
         }
+        if let focus, coordinator.focusGeneration != focus.generation {
+            coordinator.focusGeneration = focus.generation
+            map.focus(on: focus, padding: padding)
+        }
+    }
+
+    private var padding: UIEdgeInsets {
+        UIEdgeInsets(top: 140, left: 32, bottom: bottomInset + 32, right: 32)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -46,15 +88,25 @@ struct MapContainer: UIViewRepresentable {
     final class Coordinator: NSObject, MKMapViewDelegate {
         var overlaySetID: UUID?
         var fitGeneration = 0
+        var focusGeneration = 0
+        var flightsVisible = false
+
+        static func isFlight(_ overlay: MKOverlay) -> Bool {
+            overlay is FlightBufferOverlay || overlay is FlightLineOverlay
+        }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            switch overlay {
+            let renderer: MKOverlayRenderer = switch overlay {
             case let heat as HeatmapOverlay: HeatmapRenderer(overlay: heat)
             case is FlightBufferOverlay: FlightBufferRenderer(overlay: overlay)
             case is MKMultiPolygon: CoverageRenderer(overlay: overlay)
             case is MKPolyline: FlightLineRenderer(overlay: overlay)
             default: MKOverlayRenderer(overlay: overlay)
             }
+            if Self.isFlight(overlay) {
+                renderer.alpha = flightsVisible ? 1 : 0
+            }
+            return renderer
         }
     }
 }
@@ -78,6 +130,11 @@ final class FittingMapView: MKMapView {
     override func layoutSubviews() {
         super.layoutSubviews()
         applyPendingFitIfPossible()
+    }
+
+    func focus(on focus: MapFocus, padding: UIEdgeInsets) {
+        pendingFit = nil
+        setVisibleMapRect(focus.rect, edgePadding: padding, animated: true)
     }
 
     private func applyPendingFitIfPossible() {

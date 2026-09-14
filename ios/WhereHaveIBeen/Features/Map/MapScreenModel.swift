@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 import Observation
 
@@ -68,10 +69,12 @@ final class MapScreenModel {
     private(set) var showingSavedData = false
     private(set) var overlays: MapOverlaySet = .empty
     private(set) var fitGeneration = 0
+    private(set) var focus: MapFocus?
 
-    private var coverage: CoverageOverlay?
-    private var flightBuffer: FlightBufferOverlay?
-    private var flightLines: [FlightLineOverlay] = []
+    private var everyoneCoverage: CoverageOverlay?
+    private var everyoneCoverageTask: Task<Void, Never>?
+    private var trackShapes: TrackShapes?
+    private var trackShapesTask: Task<Void, Never>?
     private var heatOverlay: HeatmapOverlay?
     private var heatGridTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
@@ -148,17 +151,14 @@ final class MapScreenModel {
 
     // MARK: Actions
 
+    /// The flights toggle is a view flag read by the map directly, so only changes
+    /// that alter what the server is asked for trigger a load.
     func configurationChanged(from previous: MapConfiguration) {
         if previous.bufferM != configuration.bufferM {
             let store = store
             Task { await store.invalidateTracks() }
         }
-        if previous.flightsShown != configuration.flightsShown, previous.mode == configuration.mode,
-           previous.range == configuration.range, previous.device == configuration.device,
-           previous.bufferM == configuration.bufferM {
-            rebuildOverlays()
-            return
-        }
+        guard previous.mode != configuration.mode || previous.trackRequest != configuration.trackRequest else { return }
         reload(refresh: false)
     }
 
@@ -171,17 +171,24 @@ final class MapScreenModel {
         }
     }
 
+    func focus(on coordinate: CLLocationCoordinate2D) {
+        focus = MapFocus(latitude: coordinate.latitude, longitude: coordinate.longitude,
+                         generation: (focus?.generation ?? 0) + 1)
+    }
+
     func reset() {
         loadTask?.cancel()
+        trackShapesTask?.cancel()
+        everyoneCoverageTask?.cancel()
         heatGridTask?.cancel()
         track = nil
         heatmap = nil
         everyone = nil
-        coverage = nil
-        flightBuffer = nil
-        flightLines = []
+        everyoneCoverage = nil
+        trackShapes = nil
         heatOverlay = nil
         overlays = .empty
+        focus = nil
         fittedKeys = []
         loadedKey = nil
         phase = .idle
@@ -251,11 +258,18 @@ final class MapScreenModel {
     private func apply(track entry: CacheEntry<TrackResponse>, key: String) {
         track = entry
         loadedKey = key
-        coverage = GeoJSONShapes.coverage(from: entry.value.driving.geometry)
-        flightBuffer = GeoJSONShapes.flightBuffer(from: entry.value.flightsBuffer.geometry)
-        flightLines = entry.value.flights.features.compactMap { GeoJSONShapes.flightLine(from: $0.geometry) }
-        rebuildOverlays()
-        fitIfNeeded(key: key)
+        trackShapesTask?.cancel()
+        let response = entry.value
+        let current = trackShapes?.source
+        trackShapesTask = Task { [weak self] in
+            let shapes = await Task.detached(priority: .userInitiated) { () -> TrackShapes? in
+                current == response ? nil : TrackShapes(response)
+            }.value
+            guard !Task.isCancelled, let self else { return }
+            if let shapes { self.trackShapes = shapes }
+            self.rebuildOverlays()
+            self.fitIfNeeded(key: key)
+        }
     }
 
     private func apply(heatmap entry: CacheEntry<HeatmapResponse>, key: String) {
@@ -274,11 +288,21 @@ final class MapScreenModel {
     }
 
     private func apply(everyone entry: CacheEntry<AggregateFeature>, key: String) {
+        let unchanged = everyone?.value == entry.value && everyoneCoverage != nil
         everyone = entry
         loadedKey = key
-        coverage = GeoJSONShapes.coverage(from: entry.value.geometry)
-        rebuildOverlays()
-        fitIfNeeded(key: key)
+        guard !unchanged else { return }
+        everyoneCoverageTask?.cancel()
+        let geometry = entry.value.geometry
+        everyoneCoverageTask = Task { [weak self] in
+            let coverage = await Task.detached(priority: .userInitiated) {
+                CoverageBox(GeoJSONShapes.coverage(from: geometry))
+            }.value
+            guard !Task.isCancelled, let self else { return }
+            self.everyoneCoverage = coverage.overlay
+            self.rebuildOverlays()
+            self.fitIfNeeded(key: key)
+        }
     }
 
     private func rebuildOverlays() {
@@ -287,16 +311,14 @@ final class MapScreenModel {
         case .mine:
             switch configuration.mode {
             case .routes:
-                set.coverage = coverage
-                if configuration.flightsShown {
-                    set.flightBuffer = flightBuffer
-                    set.flightLines = flightLines
-                }
+                set.coverage = trackShapes?.coverage
+                set.flightBuffer = trackShapes?.flightBuffer
+                set.flightLines = trackShapes?.flightLines ?? []
             case .heatmap:
                 set.heatmap = heatOverlay
             }
         case .everyone:
-            set.coverage = coverage
+            set.coverage = everyoneCoverage
         }
         overlays = set
     }

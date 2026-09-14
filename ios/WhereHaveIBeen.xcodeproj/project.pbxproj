@@ -18,6 +18,7 @@
 		3AF9595154AB26BFE6652BD5 /* KeychainCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4209571AFBE8995533257DF /* KeychainCredentialStore.swift */; };
 		3CC17528EA4CFB2CA2935A93 /* MapStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE28C8A8647D94E608B1BAFF /* MapStyle.swift */; };
 		411D1DCB5DCA71B593DA1C3C /* MapScreenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80AA313662BD113911B76F8F /* MapScreenModel.swift */; };
+		42FC6DE265A22E49BDCB8CBD /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5C9C5FEAD3498139C09DAE7 /* LocationService.swift */; };
 		4524CE74B3EB4FEBF41D4DCD /* GeoJSONShapesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0CF9BFC3BFABB0819CA575B /* GeoJSONShapesTests.swift */; };
 		46B5ED746C05D446952D9631 /* DiskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BFF39118CD5E82956477863 /* DiskCache.swift */; };
 		52C434D3A0D326BFE7B73AD2 /* TrackStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD6BD36134403D96D9E9020F /* TrackStore.swift */; };
@@ -101,6 +102,7 @@
 		E0646C08F3B37F56B7C165D4 /* StatViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatViews.swift; sourceTree = "<group>"; };
 		E0CF9BFC3BFABB0819CA575B /* GeoJSONShapesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeoJSONShapesTests.swift; sourceTree = "<group>"; };
 		ED94C2254549F5FE86CFF9DE /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		F5C9C5FEAD3498139C09DAE7 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		F5EC0C21BAC88728D638E608 /* MockAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockAPIClient.swift; sourceTree = "<group>"; };
 		FE28C8A8647D94E608B1BAFF /* MapStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapStyle.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -197,6 +199,7 @@
 			isa = PBXGroup;
 			children = (
 				39B81467736B7B24F8583B72 /* .gitkeep */,
+				F5C9C5FEAD3498139C09DAE7 /* LocationService.swift */,
 			);
 			path = Location;
 			sourceTree = "<group>";
@@ -416,6 +419,7 @@
 				E1BAC38503FF1DD8F71543FD /* HeatGrid.swift in Sources */,
 				E58EBB23B89B1B1D1190FB38 /* HeatmapOverlay.swift in Sources */,
 				3AF9595154AB26BFE6652BD5 /* KeychainCredentialStore.swift in Sources */,
+				42FC6DE265A22E49BDCB8CBD /* LocationService.swift in Sources */,
 				6F9D2FF49B24A3D0B2DC049B /* MapContainer.swift in Sources */,
 				54446371ABC1D073BF5EA96C /* MapControls.swift in Sources */,
 				FC33EB049B25A0129569828B /* MapOverlaySet.swift in Sources */,

@@ -32,14 +32,21 @@ struct ModePill: View {
 struct GlassIconButton: View {
     var systemImage: String
     var accessibilityLabel: String
+    var busy = false
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.body.weight(.medium))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 40, height: 40)
+            Group {
+                if busy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: systemImage)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+            .frame(width: 40, height: 40)
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)

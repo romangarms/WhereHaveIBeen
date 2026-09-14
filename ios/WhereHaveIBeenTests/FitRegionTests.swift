@@ -50,4 +50,15 @@ struct FitRegionTests {
     @Test func emptyInputHasNoRect() {
         #expect(FitRegion.bestRect([], within: degreesWide(360)) == nil)
     }
+
+    @Test func focusRectIsCentredAndSpansTheConfiguredDistance() {
+        let focus = MapFocus(latitude: 47.62, longitude: -122.33, generation: 1)
+        let rect = focus.rect
+        let centre = MKMapPoint(x: rect.midX, y: rect.midY).coordinate
+        #expect(abs(centre.latitude - 47.62) < 1e-6)
+        #expect(abs(centre.longitude - (-122.33)) < 1e-6)
+        let west = MKMapPoint(x: rect.minX, y: rect.midY)
+        let east = MKMapPoint(x: rect.maxX, y: rect.midY)
+        #expect(abs(west.distance(to: east) - MapFocus.spanMeters) < 50)
+    }
 }

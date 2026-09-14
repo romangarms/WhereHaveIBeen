@@ -40,6 +40,27 @@ struct GeoJSONShapesTests {
         #expect(abs(end.latitude - 33.9) < 0.0001)
     }
 
+    @Test func multiLineStringUsesFirstLine() throws {
+        let line = try #require(GeoJSONShapes.flightLine(from: .multiLineString([[[-122.3, 47.4], [-118.4, 33.9]], [[0, 0], [1, 1]]])))
+        #expect(line.pointCount == 2)
+        #expect(abs(line.points()[0].coordinate.latitude - 47.4) < 0.0001)
+    }
+
+    @Test func degenerateRingsAreDropped() {
+        #expect(GeoJSONShapes.coverage(from: .polygon([[[-122.4, 47.6], [-122.3, 47.6]]])) == nil)
+        #expect(GeoJSONShapes.flightLine(from: .lineString([[-122.3, 47.4]])) == nil)
+        let overlay = GeoJSONShapes.coverage(from: .multiPolygon([square, [[]]]))
+        #expect(overlay?.polygons.count == 1)
+    }
+
+    @Test func trackShapesRememberTheirSource() throws {
+        let track = try Fixtures.decode(TrackResponse.self, named: "track")
+        let shapes = TrackShapes(track)
+        #expect(shapes.source == track)
+        #expect(shapes.coverage != nil)
+        #expect(shapes.flightLines.count == track.flights.features.count)
+    }
+
     @Test func geometryRoundTripsThroughCodable() throws {
         let geometry = GeoJSONGeometry.multiPolygon([square])
         let data = try APIJSON.encoder.encode(geometry)

@@ -91,6 +91,36 @@ struct RendererTests {
         #expect(FlightLineRenderer(overlay: line).lineWidth == 2.4)
     }
 
+    @Test func coverageDecimationKeepsShapeAndCollapsesTinyLoops() {
+        let square = [CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 0), CGPoint(x: 100, y: 100), CGPoint(x: 0, y: 100)]
+        #expect(CoverageRenderer.decimate(square, tolerance: 10) == square)
+        let dense = (0...1000).map { CGPoint(x: Double($0) / 10, y: 0) } + [CGPoint(x: 100, y: 100), CGPoint(x: 0, y: 100)]
+        let thinned = CoverageRenderer.decimate(dense, tolerance: 10)
+        #expect(thinned.count == 13)
+        #expect(thinned.first == .zero)
+        let tiny = [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1), CGPoint(x: 0, y: 1)]
+        #expect(CoverageRenderer.decimate(tiny, tolerance: 10) == [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 1)])
+        #expect(CoverageRenderer.decimate([], tolerance: 10).isEmpty)
+    }
+
+    @Test func polygonClipKeepsOnlyTheInsideOfTheRect() {
+        let square = [CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 0), CGPoint(x: 100, y: 100), CGPoint(x: 0, y: 100)]
+        let clipped = PolygonClip.clip(square, to: CGRect(x: 50, y: -10, width: 100, height: 60))
+        #expect(PolygonClip.bounds(of: clipped) == CGRect(x: 50, y: 0, width: 50, height: 50))
+        #expect(PolygonClip.clip(square, to: CGRect(x: 200, y: 200, width: 10, height: 10)).isEmpty)
+        #expect(PolygonClip.clip(square, to: CGRect(x: -10, y: -10, width: 200, height: 200)) == square)
+    }
+
+    @Test func edgeRunsSkipEdgesAwayFromTheRect() {
+        let square = [CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 0), CGPoint(x: 100, y: 100), CGPoint(x: 0, y: 100)]
+        #expect(PolygonClip.edgeRuns(square, near: CGRect(x: -10, y: -10, width: 200, height: 200)) == [PolygonClip.Run(points: square, closed: true)])
+        let left = PolygonClip.edgeRuns(square, near: CGRect(x: -10, y: 20, width: 20, height: 20))
+        #expect(left == [PolygonClip.Run(points: [CGPoint(x: 0, y: 100), CGPoint(x: 0, y: 0)], closed: false)])
+        let corner = PolygonClip.edgeRuns(square, near: CGRect(x: -10, y: -10, width: 20, height: 20))
+        #expect(corner == [PolygonClip.Run(points: [CGPoint(x: 0, y: 100), CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 0)], closed: false)])
+        #expect(PolygonClip.edgeRuns(square, near: CGRect(x: 200, y: 200, width: 10, height: 10)).isEmpty)
+    }
+
     @Test func heatmapRendererPaintsDots() throws {
         let heatmap = try Fixtures.decode(HeatmapResponse.self, named: "heatmap")
         let grid = HeatGrid(cells: heatmap.cells, cellDeg: heatmap.cellDeg)
