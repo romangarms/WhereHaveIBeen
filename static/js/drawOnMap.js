@@ -9,6 +9,7 @@ let heatLayer = null;
 let flightLayers = [];
 let exploredLayers = [];
 let zoomHookAttached = false;
+let flightPaneCreated = false;
 
 const EXPLORED_COLOR = '#3d6ba8';
 const FLIGHT_COLOR = '#e6a23c';
@@ -29,15 +30,25 @@ function exploredStyle() {
     };
 }
 
+// Flights sit in their own pane between the tiles (200) and the overlay pane
+// (400) so the driven corridors always paint over them.
+const FLIGHT_PANE = 'flights';
+
+function ensureFlightPane() {
+    if (flightPaneCreated) return;
+    flightPaneCreated = true;
+    map.createPane(FLIGHT_PANE).style.zIndex = 350;
+}
+
 // The flight buffer is fill-only: with an outline it turns into a solid band
 // when zoomed out and hides the dashed path, which is what the legend promises.
 function flightBufferStyle() {
-    return { stroke: false, fillColor: FLIGHT_COLOR, fillOpacity: .22 };
+    return { stroke: false, fillColor: FLIGHT_COLOR, fillOpacity: .15 };
 }
 
 function flightLineStyle() {
     const boost = zoomBoost();
-    return { color: FLIGHT_LINE_COLOR, weight: 2.4 + boost * 0.5, opacity: .8, dashArray: '10 8' };
+    return { color: FLIGHT_LINE_COLOR, weight: 2.4 + boost * 0.5, opacity: .45, dashArray: '10 8' };
 }
 
 function restyleForZoom() {
@@ -55,19 +66,12 @@ function flightsShown() {
     return typeof getFlightsShown === 'function' ? getFlightsShown() : true;
 }
 
-function addFlightLayer(layer, style) {
+function addFlightLayer(geojson, style) {
     ensureZoomHook();
+    ensureFlightPane();
+    const layer = L.geoJSON(geojson, { style: style(), pane: FLIGHT_PANE });
     flightLayers.push({ layer, style });
-    if (flightsShown()) {
-        layer.addTo(map);
-        raiseFlightLines();
-    }
-}
-
-function raiseFlightLines() {
-    flightLayers.forEach(({ layer, style }) => {
-        if (style === flightLineStyle && map.hasLayer(layer)) layer.bringToFront();
-    });
+    if (flightsShown()) layer.addTo(map);
 }
 
 /**
@@ -76,12 +80,11 @@ function raiseFlightLines() {
 function renderFlightLines(featureCollection) {
     const features = featureCollection?.features || [];
     if (!features.length) return;
-    addFlightLayer(L.geoJSON(featureCollection, { style: flightLineStyle() }), flightLineStyle);
+    addFlightLayer(featureCollection, flightLineStyle);
 }
 
 function setFlightLayersVisible(shown) {
     flightLayers.forEach(({ layer }) => shown ? layer.addTo(map) : layer.remove());
-    if (shown) raiseFlightLines();
 }
 
 function addBaseLayer() {
@@ -96,7 +99,7 @@ function renderCachedBuffer(buffer, color) {
     if (!buffer || !buffer.geometry) return;
 
     if (color === "red") {
-        addFlightLayer(L.geoJSON(buffer, { style: flightBufferStyle() }), flightBufferStyle);
+        addFlightLayer(buffer, flightBufferStyle);
         return;
     }
 
