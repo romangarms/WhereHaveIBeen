@@ -119,7 +119,8 @@ async function fetchServerResult(path, params, taskName) {
             let progress = null;
             try { progress = (await response.json()).progress || null; } catch (e) { /* no body */ }
             if (progress) {
-                const stage = progress.stage === 'building' ? 'building corridors' : 'fetching GPS history';
+                const stage = { building: 'building corridors', importing: 'adding imported history' }[progress.stage]
+                    || 'fetching GPS history';
                 showServerProgress(progress.done, progress.total, `Computing on the server — ${stage}`);
             } else {
                 setProgressMessage("Computing on the server — the first load of a long history can take a minute");
