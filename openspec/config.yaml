@@ -1,18 +1,22 @@
 schema: spec-driven
 
 context: |
+  Read openspec/PROJECT-HISTORY.md before proposing: it covers the systems, the
+  timeline, and directions already tried and dropped (OSRM snapping,
+  browser-side compute, a local user database, a native Android tracker).
+  Recording is done by the stock OwnTracks app posting to the stock OwnTracks
+  Recorder. Do not propose replacing OwnTracks; the project builds around it.
   All geometry and stats are computed server-side by the separate
   WhereHaveIBeen-API repo (/api/me/*, /api/aggregate-roads). Clients (Flask web
-  app, ios/, android/) only render; a change that needs new data is an API
-  change first.
-  The Flask app keeps no database; identity is the OwnTracks account behind
-  HTTP Basic / the session cookie.
-  The iOS app is the reference for the native apps: android/ ports its screens
-  and behaviour, so changes to one native client should say whether the other
-  follows.
-  Other contributors (main is maintained by Roman Garms) change the design
-  frequently; branch from current main and check its CLAUDE.md before
-  proposing.
+  app, ios/) only render, so a change that needs new data is an API change
+  first, and that repo is maintained separately.
+  The Flask app keeps no database. Identity is the OwnTracks account, behind
+  HTTP Basic auth or the session cookie.
+  Favour small, reversible, stable changes over large rewrites. Features from
+  the backup-openspec branch come in later, one at a time, rebuilt on the
+  current design.
+  Main is maintained by Roman Garms and its design changes often: branch from
+  current main and check its CLAUDE.md before proposing.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
