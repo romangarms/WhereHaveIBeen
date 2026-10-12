@@ -1,0 +1,37 @@
+schema: spec-driven
+
+context: |
+  All geometry and stats are computed server-side by the separate
+  WhereHaveIBeen-API repo (/api/me/*, /api/aggregate-roads). Clients (Flask web
+  app, ios/, android/) only render; a change that needs new data is an API
+  change first.
+  The Flask app keeps no database; identity is the OwnTracks account behind
+  HTTP Basic / the session cookie.
+  The iOS app is the reference for the native apps: android/ ports its screens
+  and behaviour, so changes to one native client should say whether the other
+  follows.
+  Other contributors (main is maintained by Roman Garms) change the design
+  frequently; branch from current main and check its CLAUDE.md before
+  proposing.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
